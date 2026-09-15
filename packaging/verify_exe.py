@@ -22,6 +22,7 @@ for key in ('PYTHONPATH', 'PYTHONHOME', 'VIRTUAL_ENV', 'TORCH_HOME', 'DLSS5_LOG_
     environment.pop(key, None)
 environment['PATH'] = os.path.join(os.environ['SystemRoot'], 'System32')
 environment['DLSS5_CACHE_ROOT'] = str(ROOT / 'logs' / 'exe-runtime-cache')
+environment['DLSS5_LOG_DIR'] = str(result_dir)
 start = time.monotonic()
 process = subprocess.Popen([str(destination), '--verify-package', str(result_dir)],
                            cwd=verification_dir, env=environment,
@@ -47,6 +48,10 @@ if return_code != 0 or not report_path.exists():
         print(log.read_text(encoding='utf-8')[-10000:])
     raise SystemExit(return_code or 1)
 result = json.loads(report_path.read_text(encoding='utf-8'))
+runtime_cache = Path(result['executable']).parent.parent
+result['requested_runtime_cache_removed_after_exit'] = not runtime_cache.exists()
+if not result['requested_runtime_cache_removed_after_exit']:
+    raise RuntimeError('Explicitly requested runtime cleanup did not finish after exit: ' + str(runtime_cache))
 result['total_seconds_including_extraction'] = elapsed
 result['executable_size_bytes'] = source.stat().st_size
 result['isolated_working_directory'] = str(verification_dir)

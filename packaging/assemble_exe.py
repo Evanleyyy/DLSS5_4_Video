@@ -17,7 +17,8 @@ compiler = r'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 subprocess.run([compiler, '/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/codepage:65001',
                 '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll',
                 '/out:' + str(stub), '/resource:' + str(extractor) + ',extractor',
-                str(ROOT / 'packaging' / 'LargePackageLauncher.cs'), str(build_info)], check=True)
+                str(ROOT / 'packaging' / 'LargePackageLauncher.cs'),
+                str(ROOT / 'packaging' / 'RuntimeCache.cs'), str(build_info)], check=True)
 output = ROOT / 'output' / 'DLSS5_Standalone.exe'
 output.parent.mkdir(exist_ok=True)
 assert stub.stat().st_size + archive.stat().st_size + 64 < 2**32, 'Windows EXE exceeds 4 GiB'

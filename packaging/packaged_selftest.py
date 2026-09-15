@@ -81,6 +81,9 @@ def verify(directory, bundle):
                 from export_verification import verify_export
                 stage('multi_channel_export', lambda: verify_export(app, directory / 'channels', sample, picture, output_image))
                 app._close_live()
+                from cache_verification import verify_cache
+                stage('manual_cache_cleanup', lambda: verify_cache(app, directory / 'cache-controls',
+                      request_runtime_cleanup=True))
                 return editor_result
             finally:
                 root.destroy()

@@ -108,7 +108,7 @@ class LayoutMixin:
         self.tabs = ttk.Notebook(self.inspector)
         self.tabs.pack(fill='both', expand=True)
         self.pages = {}
-        for name in ('素材', '参数', '遮罩', '导出'):
+        for name in ('素材', '参数', '遮罩', '导出', '缓存'):
             page = ScrollPage(self.tabs)
             self.pages[name] = page
             self.tabs.add(page, text=' ' + name + ' ')
@@ -120,6 +120,7 @@ class LayoutMixin:
         self._build_settings(self.pages['参数'].body)
         self._build_mask_controls(self.pages['遮罩'].body)
         self._build_export(self.pages['导出'].body)
+        self._build_cache(self.pages['缓存'].body)
         self._build_preview(self.preview_panel)
         for page in self.pages.values():
             page.bind_wheel()

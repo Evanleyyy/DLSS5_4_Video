@@ -24,6 +24,7 @@ import tempfile
 
 import cv2
 import numpy as np
+from cache_manager import uses_video_cache
 
 # ---- model / asset paths (all bundled relative to this folder; portable) ----
 if getattr(sys, 'frozen', False):
@@ -253,6 +254,7 @@ def infer_depth_frame(frame, edge=720, model=None):
     return d
 
 
+@uses_video_cache
 def generate_depth(video, frame_limit=None, progress=None, cancel=None, force=False, edge=720):
     """Cache depth/<i>.jpg (8-bit, 0=far..255=near) for every frame. Computed with the
     SHORT edge clamped to `edge` (720) regardless of aspect ratio, then upscaled back to
@@ -302,6 +304,7 @@ def get_flow_model():
     return _flow_model
 
 
+@uses_video_cache
 def generate_flow(video, frame_limit=None, progress=None, cancel=None, force=False, edge=720):
     """Cache flow/*.flo for every frame. Frame 0 = zero flow.
     The SHORT edge is clamped to `edge` (720) regardless of aspect ratio; flow is computed
@@ -376,6 +379,7 @@ def _bundle_ffmpeg():
     return local if os.path.isfile(local) else shutil.which("ffmpeg")
 
 
+@uses_video_cache
 def generate_dlss(video, settings=None, frame_limit=None, progress=None):
     """Process and save one frame at a time, with bounded host memory."""
     import dlss_engine
@@ -423,6 +427,7 @@ def generate_dlss(video, settings=None, frame_limit=None, progress=None):
         live.close()
 
 
+@uses_video_cache
 def export_video(video, kind, frames=None, fps=30.0, crf=18, with_audio=True):
     """Validate every frame and publish output only after the encoder succeeds."""
     if kind not in ('depth', 'flow', 'dlss'):

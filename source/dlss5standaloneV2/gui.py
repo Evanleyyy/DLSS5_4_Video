@@ -26,11 +26,12 @@ import dlss_engine
 from gui_layout import LayoutMixin
 from image_editor_ui import ImageEditorMixin
 from export_ui import ExportMixin
+from cache_ui import CacheMixin
 
 VIEWS = ["原图", "光流", "深度", "DLSS", "对比"]
 
 
-class App(ExportMixin, ImageEditorMixin, LayoutMixin):
+class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
     def __init__(self, root):
         self.root = root
         self.video = None
@@ -94,7 +95,8 @@ class App(ExportMixin, ImageEditorMixin, LayoutMixin):
             visit(self.root)
         else:
             for widget, state in self._widget_states:
-                widget.configure(state=state)
+                if widget.winfo_exists():
+                    widget.configure(state=state)
             self._split_frame = -1
             self._update_export_btn()
             self.display_view()

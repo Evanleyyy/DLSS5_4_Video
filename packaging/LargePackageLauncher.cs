@@ -17,17 +17,27 @@ internal static class LargePackageLauncher
     private static int Main(string[] args)
     {
         bool verify = Array.IndexOf(args, "--verify-package") >= 0;
-        string cacheBase = Environment.GetEnvironmentVariable("DLSS5_CACHE_ROOT");
-        if (String.IsNullOrEmpty(cacheBase))
-            cacheBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                                     "DLSS5Standalone", "runtime");
-        string cache = Path.Combine(cacheBase, BuildInfo.Id);
-        string app = Path.Combine(cache, "app", "DLSS5_App.exe");
-        string complete = Path.Combine(cache, "ready.txt");
-        Directory.CreateDirectory(cache);
+        if (args.Length == 2 && (args[0] == "--clean-runtime-cache" || args[0] == "--cancel-runtime-cleanup"))
+        {
+            try
+            {
+                string message;
+                int result = RuntimeCache.Clean(RuntimeCache.Root(), args[1], true,
+                                               args[0] == "--cancel-runtime-cleanup", out message);
+                WriteResult(message);
+                return result;
+            }
+            catch (Exception error) { WriteResult("清理失败：" + error.Message); return 1; }
+        }
+        RuntimeCache.Lease lease = null;
+        string cacheBase = null;
         try
         {
-            using (Mutex mutex = new Mutex(false, "Local\\DLSS5_Prepare_" + BuildInfo.Id))
+            cacheBase = RuntimeCache.Root();
+            string cache = RuntimeCache.Folder(cacheBase, BuildInfo.Id);
+            string app = Path.Combine(cache, "app", "DLSS5_App.exe");
+            string complete = Path.Combine(cache, "ready.txt");
+            using (Mutex mutex = RuntimeCache.Guard(BuildInfo.Id))
             {
                 bool acquired = false;
                 try
@@ -35,6 +45,12 @@ internal static class LargePackageLauncher
                     try { acquired = mutex.WaitOne(600000); }
                     catch (AbandonedMutexException) { acquired = true; }
                     if (!acquired) throw new IOException("另一个启动进程仍在准备文件，请稍后重试。");
+                    RuntimeCache.CheckPath(cache);
+                    Directory.CreateDirectory(cache);
+                    RuntimeCache.CheckPath(Path.Combine(cache, RuntimeCache.Owner));
+                    RuntimeCache.CheckPath(complete);
+                    RuntimeCache.CheckPath(app);
+                    File.WriteAllText(Path.Combine(cache, RuntimeCache.Owner), BuildInfo.Id, Encoding.UTF8);
                     if (!File.Exists(complete) || !File.Exists(app))
                     {
                         if (!verify) ShowPreparation();
@@ -42,6 +58,7 @@ internal static class LargePackageLauncher
                         if (!File.Exists(app)) throw new IOException("应用文件未能正确解压。");
                         File.WriteAllText(complete, BuildInfo.Id, Encoding.UTF8);
                     }
+                    lease = new RuntimeCache.Lease(cache);
                 }
                 finally
                 {
@@ -53,6 +70,9 @@ internal static class LargePackageLauncher
             start.WorkingDirectory = Path.GetDirectoryName(app);
             start.UseShellExecute = false;
             start.CreateNoWindow = true;
+            start.EnvironmentVariables["DLSS5_CACHE_ROOT"] = cacheBase;
+            start.EnvironmentVariables["DLSS5_RUNTIME_ID"] = BuildInfo.Id;
+            start.EnvironmentVariables["DLSS5_LAUNCHER_PATH"] = Assembly.GetExecutingAssembly().Location;
             StringBuilder arguments = new StringBuilder();
             foreach (string argument in args)
             {
@@ -68,10 +88,34 @@ internal static class LargePackageLauncher
         }
         catch (Exception exception)
         {
-            File.WriteAllText(Path.Combine(cache, "launcher-error.log"), exception.ToString(), Encoding.UTF8);
-            if (!verify) MessageBox.Show("启动失败：" + exception.Message + "\n\n日志：" + cache,
+            RuntimeCache.WriteLog(exception.ToString());
+            if (!verify) MessageBox.Show("启动失败：" + exception.Message,
                                         "DLSS5", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
+        }
+        finally
+        {
+            try
+            {
+                if (lease != null) lease.Dispose();
+                if (cacheBase != null)
+                {
+                    string message;
+                    RuntimeCache.Clean(cacheBase, BuildInfo.Id, false, false, out message);
+                    RuntimeCache.WriteLog(message);
+                }
+            }
+            catch (Exception error) { RuntimeCache.WriteLog("缓存清理未完成，可下次在界面重试：" + error.Message); }
+        }
+    }
+
+    private static void WriteResult(string message)
+    {
+        // A hidden winexe has no console code page; write UTF-8 to the redirected pipe directly.
+        using (Stream stream = Console.OpenStandardOutput())
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(message + Environment.NewLine);
+            stream.Write(bytes, 0, bytes.Length);
         }
     }
 

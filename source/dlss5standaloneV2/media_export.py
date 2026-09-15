@@ -159,6 +159,12 @@ def _channel_frames(video, channel, indices):
 
 
 def export_channels(request, settings, *, progress=None, log=None):
+    from cache_manager import video_cache_guard
+    with video_cache_guard(None if request['is_image'] else request['source']):
+        return _export_channels(request, settings, progress=progress, log=log)
+
+
+def _export_channels(request, settings, *, progress=None, log=None):
     """A request is a main-thread snapshot. No Tk variables are accessed here."""
     validate_request(request)
     channels = request['channels']
