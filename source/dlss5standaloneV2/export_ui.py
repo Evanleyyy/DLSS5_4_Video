@@ -24,7 +24,7 @@ class ExportMixin:
             if not allowed:
                 self.v_export_channels[channel].set(0)
         if image:
-            text = ('将单张图片生成为静态 MP4，可设置时长和帧率。' if video else '保存原始尺寸 PNG，DLSS 结果包含局部遮罩和羽化。')
+            text = ('将单张图片生成为静态 MP4，可设置时长和帧率；透明度在视频中不保留。' if video else '保存实际输出尺寸 PNG，处理结果包含局部遮罩和羽化。')
             text += ' 单张图片不包含光流信息。'
         else:
             text = '按原视频帧率导出完整 MP4。' if video else '可提取当前帧，也可将全部帧分别保存为 PNG 序列。'

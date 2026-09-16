@@ -1,0 +1,940 @@
+{
+  "application_version": "0.3.0",
+  "engines": {
+    "pisa": {
+      "remote": "https://github.com/csslc/PiSA-SR.git",
+      "commit": "9c76e12e261d1980148738a0cff41e5e27d18c9f"
+    },
+    "seedvr2": {
+      "remote": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git",
+      "commit": "4490bd1f482e026674543386bb2a4d176da245b9"
+    },
+    "vosr": {
+      "remote": "https://github.com/cswry/VOSR.git",
+      "commit": "516f292b99cf23c76fdc33351e86dc4f97711fe8"
+    }
+  },
+  "models": [
+    {
+      "path": "pisa/pisa_sr.pkl",
+      "size": 32865445,
+      "sha256": "13502f7bde5e4e585f84f24c3d904d9c848e068bf89f984046fe87da81a391f6"
+    },
+    {
+      "path": "pisa/sd21/model_index.json",
+      "size": 543,
+      "sha256": "518553e098fdaa4153d9a92139e344e44f53bb329c22f383293e3099c4f1bad2"
+    },
+    {
+      "path": "pisa/sd21/README.md",
+      "size": 12473,
+      "sha256": "28d20df20b26b5bd476370e4bf51832442db701b21a9fa90a62cc4a272d18581"
+    },
+    {
+      "path": "pisa/sd21/scheduler/scheduler_config.json",
+      "size": 346,
+      "sha256": "11ac5627d7df0fa344b875c4b5722b1767a8a2aa1684c2cf8b4d614300127234"
+    },
+    {
+      "path": "pisa/sd21/text_encoder/config.json",
+      "size": 613,
+      "sha256": "7e33bfc475f6cf76e69b28b101993ca834d1f22ff4d35caefde32d63d4f42fba"
+    },
+    {
+      "path": "pisa/sd21/text_encoder/model.safetensors",
+      "size": 1361597018,
+      "sha256": "cce6febb0b6d876ee5eb24af35e27e764eb4f9b1d0b7c026c8c3333d4cfc916c"
+    },
+    {
+      "path": "pisa/sd21/tokenizer/merges.txt",
+      "size": 524619,
+      "sha256": "9fd691f7c8039210e0fced15865466c65820d09b63988b0174bfe25de299051a"
+    },
+    {
+      "path": "pisa/sd21/tokenizer/special_tokens_map.json",
+      "size": 460,
+      "sha256": "f118ab3a983206e4f32583448de6bd6aae4ee21869135cef1f5848a753cdaab6"
+    },
+    {
+      "path": "pisa/sd21/tokenizer/tokenizer_config.json",
+      "size": 807,
+      "sha256": "d562b18a0c6d32a168fce3d7a342fce64579ebacffb98fb71b0affc494fc32d8"
+    },
+    {
+      "path": "pisa/sd21/tokenizer/vocab.json",
+      "size": 1059962,
+      "sha256": "e089ad92ba36837a0d31433e555c8f45fe601ab5c221d4f607ded32d9f7a4349"
+    },
+    {
+      "path": "pisa/sd21/unet/config.json",
+      "size": 911,
+      "sha256": "ce0c6d379e3b1d3e1f79338de70c80a1e36f17a6372439a8249b6fb0dfa1b608"
+    },
+    {
+      "path": "pisa/sd21/unet/diffusion_pytorch_model.safetensors",
+      "size": 3463726498,
+      "sha256": "6dfae3e5f7d459b50f4b0850ead945972c75bb0e1897628933e169eb43974214"
+    },
+    {
+      "path": "pisa/sd21/vae/config.json",
+      "size": 553,
+      "sha256": "424117cb534ce03497c41305ed868980123917b2b6abba4bbaa615e968772903"
+    },
+    {
+      "path": "pisa/sd21/vae/diffusion_pytorch_model.safetensors",
+      "size": 334643276,
+      "sha256": "a1d993488569e928462932c8c38a0760b874d166399b14414135bd9c42df5815"
+    },
+    {
+      "path": "seedvr2/ema_vae_fp16.safetensors",
+      "size": 501324814,
+      "sha256": "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1"
+    },
+    {
+      "path": "seedvr2/seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+      "size": 3391544696,
+      "sha256": "3bf1e43ebedd570e7e7a0b1b60d6a02e105978f505c8128a241cde99a8240cff"
+    },
+    {
+      "path": "vosr/Qwen-Image-vae-2d/config.json",
+      "size": 811,
+      "sha256": "1e294faf15188e06fcb72ce09652e8fb7368bd77b8dd794b5b39fe77d610681b"
+    },
+    {
+      "path": "vosr/Qwen-Image-vae-2d/diffusion_pytorch_model.safetensors",
+      "size": 178418892,
+      "sha256": "1dd2c67f3f29734d48709513ed181d4f351966d76ba95f77a5cff8e1daf547fa"
+    },
+    {
+      "path": "vosr/torch_cache/checkpoints/dinov2_vitl14_pretrain.pth",
+      "size": 1217586395,
+      "sha256": "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/__init__.py",
+      "size": 224,
+      "sha256": "1e23e03ffdaf2605636f73e550a6619359ebae271f488437bd6ef068b75c114f"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/configs/__init__.py",
+      "size": 703,
+      "sha256": "65fcf6e534abdf7415092d3b1eea91360864f4f02c232f4c025d380ab3e8e99d"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/__init__.py",
+      "size": 573,
+      "sha256": "4ee2d8fb3167d24b1f01a416e25592d7d036985ede00076dc53b035ef829876e"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/accumulators.py",
+      "size": 5306,
+      "sha256": "8df46f1a6ef402c0a56ac23a2b97558a61a9548902d857c2ea78bf207245e2f9"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/adapters.py",
+      "size": 2117,
+      "sha256": "f79418922746aa5088ccf50a4ee672c3e46d123e7d67bb1ebebd854df528c570"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/augmentations.py",
+      "size": 4095,
+      "sha256": "b8ed54a2f95497cc049feb2a1ea209e76c8a1d1f3db9209744e9283299f21cec"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/cell_dino/augmentations.py",
+      "size": 3231,
+      "sha256": "01ab32eed0d969a8b3b5502b48c37f451cdb33329cabae054ccb44c219cc8cd3"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/cell_dino/transforms.py",
+      "size": 4955,
+      "sha256": "dcc786d7336e1c3ec7a2c3b3914cd221a04ddb82097c1f9f85f6837dcdc60e70"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/collate.py",
+      "size": 2047,
+      "sha256": "d193508802b5653b963f55366a2c9df99ca774b64f634a33c342be62a6bb88ba"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/datasets/__init__.py",
+      "size": 486,
+      "sha256": "306d57dfc040707427d6820cc1c115d1f751057a6d208ce2858f77a3bf86626b"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/datasets/cell_dino/chammi_cp.py",
+      "size": 3211,
+      "sha256": "a4b38c6ac34950ece3ee6e5d3dbe6628f9989168534895a361f67a607c06b55b"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/datasets/cell_dino/chammi_hpa.py",
+      "size": 3186,
+      "sha256": "fbb6c4dc418ede1fd19225c4748c73c0434df0952123dda30b51592d0a80ae8d"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/datasets/cell_dino/chammi_wtc.py",
+      "size": 3008,
+      "sha256": "c75ca1682bf589bf90aa2e3115bf3bfcdaa5d7dde00065f0c0af850635e7cfab"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/datasets/cell_dino/hpafov.py",
+      "size": 9002,
+      "sha256": "75d60870557a5d8603409ef72d261aa7438f06df28138248f28f2a9f9fc480e6"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/datasets/cell_dino/hpaone.py",
+      "size": 6611,
+      "sha256": "52e2fd8f3a21afacdc8eb9d50e008b5c9f304c02458689c66e2e280ba384737c"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/datasets/decoders.py",
+      "size": 3033,
+      "sha256": "84f1b6659f6af74af9f52069fb5853aedcec800851fb4378817247e8ca826bb7"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/datasets/extended.py",
+      "size": 1605,
+      "sha256": "0d98fe9c87ea5ad55cec157af1d35aa7ffa7edcbcec27abb7775186889e4c1e8"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/datasets/image_net.py",
+      "size": 11121,
+      "sha256": "2e1dca700b315c3d960941d1151214bb5e1562e0f598d0e5e004084648db554c"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/datasets/image_net_22k.py",
+      "size": 10543,
+      "sha256": "a5c6c6eff929d0f0995de5b2042553ac8dcff0b6a63e0b005c0176e60d92442c"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/loaders.py",
+      "size": 7291,
+      "sha256": "d75d465e622b72a87e0dff6f18d4e490b4335955471474a2341dd3286433c04a"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/masking.py",
+      "size": 3031,
+      "sha256": "3ae0e8eb7898697abaffac4b96b046456ef5e83d88047a5a0fa2298a2570b3d0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/samplers.py",
+      "size": 7874,
+      "sha256": "8c1ffefaa52d58e3e8995127dde6f0983b8dc2a88b28702322cf17df98538dc0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/data/transforms.py",
+      "size": 3147,
+      "sha256": "902498b1dca75ebc41fb93c77ffd7c1f387a1274b032d33cff1c336da9f088fb"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/distributed/__init__.py",
+      "size": 8846,
+      "sha256": "e3073a91d68579cacc788a2eb4377aaa06e3f3f0c27d553b9b3009362d7778d0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/__init__.py",
+      "size": 199,
+      "sha256": "4cb84429008d894db3edcce826656c5bab6474bf57fb7852d15cb1768492f1f0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/cell_dino/knn.py",
+      "size": 17267,
+      "sha256": "ebb61df9f13bbbef644f545cf12b82f2c3e0f17d98562504e652ea43f2d19ca4"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/cell_dino/linear.py",
+      "size": 38635,
+      "sha256": "6fada76b0b99a3a7c918bc7ba6534a69575feaed135ce82c57b3ee44a6b5fa11"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/cell_dino/utils.py",
+      "size": 23684,
+      "sha256": "2fce6ee1053f9018f103b62e9edbb91a4ba25c3d158f9a437f84ef89007421dc"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/__init__.py",
+      "size": 199,
+      "sha256": "4cb84429008d894db3edcce826656c5bab6474bf57fb7852d15cb1768492f1f0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/__init__.py",
+      "size": 470,
+      "sha256": "95c2e477ef2c2c3b99e9d802c7390d28de414c6d04fb6396f692951b8e4b568f"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/backbones/__init__.py",
+      "size": 256,
+      "sha256": "009378c5fd3c3ff8bf3bcbcd3e33276fdda55a081d8e35cc50440748f6d71996"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/backbones/vision_transformer.py",
+      "size": 451,
+      "sha256": "1199c1e2b5ab0ed4a87b3c09492afd615e16548d2c3b05163629a83a5626ca9f"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/builder.py",
+      "size": 1469,
+      "sha256": "2f6728ac42dd8ece38eec3cbe62966d34ccdd86925becf42ed737c45b61c38d5"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/decode_heads/__init__.py",
+      "size": 265,
+      "sha256": "8958c331b3ce63cda89a5966466e476448cb401a4d929730371cdfc19f5fce65"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/decode_heads/decode_head.py",
+      "size": 8878,
+      "sha256": "45b762083213c724154a73967c697e7ca39476ab8fb1d08c9f137823ee0fe2e3"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/decode_heads/dpt_head.py",
+      "size": 10704,
+      "sha256": "e710b039e9f6f2dc23a806aaf52c4186b06c6194038d537d61867f5cd9b708c2"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/decode_heads/linear_head.py",
+      "size": 3322,
+      "sha256": "e24d43fe96636a028e107f2afa022d3e4603593f43824a5d5c8b5fe275ffc73a"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/depther/__init__.py",
+      "size": 282,
+      "sha256": "475212a814647de6f9542baea980569e46d1856b84140bee7e40958ed0a88c2a"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/depther/base.py",
+      "size": 7891,
+      "sha256": "f1fbfaa8a886a02ba19e1302442c8c782645a8cacd33a164eb60323eec7cff1d"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/depther/encoder_decoder.py",
+      "size": 9161,
+      "sha256": "2c1702e2d7cd19ee5d158c91f4faa4272a7e950c9b417f8c9934f21e597fce0f"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/losses/__init__.py",
+      "size": 271,
+      "sha256": "54d9f7a7080392a24d101daed2ef2c2e0b7fd7f41bbf2670ed888cc52bc6571c"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/losses/gradientloss.py",
+      "size": 2609,
+      "sha256": "b53a75fecb7cb0f780de356a8498d584ae11dd46627d42661f9272c6eed9efbe"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/models/losses/sigloss.py",
+      "size": 2351,
+      "sha256": "c1782378acce6932bc7129458fbb0c24daaa4d5c38202dee1c1450ad378dd7a5"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/ops/__init__.py",
+      "size": 231,
+      "sha256": "af4cf40702c4ffc9c2530840e8127044c1558a9c1bd8ed49973976045fb25735"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/depth/ops/wrappers.py",
+      "size": 1257,
+      "sha256": "3b7126117bf38fe427084a92a4e2aff4c88415735d34307b83a27a208eae0fd6"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/knn.py",
+      "size": 14859,
+      "sha256": "e01d8f657e70b48d9ace34ead3e27300698f2cc7e7acdd0deb792980bd13e945"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/linear.py",
+      "size": 22051,
+      "sha256": "eec7594caa03fce16ae711a0bfed0d2ae58d9c7f600a2991283c3737e52fb564"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/log_regression.py",
+      "size": 15582,
+      "sha256": "36fe04710792c03bb450335e0e56d141faf350d7fae43d3a88357bc193b2bcad"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/metrics.py",
+      "size": 4541,
+      "sha256": "6c42ca50fe96e66e5309ebd1783adade4e5a31c8a30794e071ab85305d425ab0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation/__init__.py",
+      "size": 199,
+      "sha256": "4cb84429008d894db3edcce826656c5bab6474bf57fb7852d15cb1768492f1f0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation/hooks/__init__.py",
+      "size": 243,
+      "sha256": "271920d9b517945e808c452de76eab92184038b08e522f373d5248c6c685c27c"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation/hooks/optimizer.py",
+      "size": 1455,
+      "sha256": "db7fe93d127e1a219682c8fc8223519fb13106a3d4a813c98d0efc7e7b4e67de"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation/models/__init__.py",
+      "size": 284,
+      "sha256": "2cbf08f7e62e24bf260976ae75c3c09f8e1c4d549aa820fe09a6ba56e5c6f065"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation/models/backbones/__init__.py",
+      "size": 256,
+      "sha256": "009378c5fd3c3ff8bf3bcbcd3e33276fdda55a081d8e35cc50440748f6d71996"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation/models/backbones/vision_transformer.py",
+      "size": 495,
+      "sha256": "7de8d90d73816f62c9091079c4cd5599e5ec8d88c86ddca65412a7071f5b7e4e"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation/models/decode_heads/__init__.py",
+      "size": 234,
+      "sha256": "ebd3c8379f297438e15ebf54e634c737dfc7f205dc58647733a68df2ff03e9e7"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation/models/decode_heads/linear_head.py",
+      "size": 3382,
+      "sha256": "29eb6fa37efa5242e346953230003ab9a253b4aa32edb01cd540f0335c051ffa"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation/utils/__init__.py",
+      "size": 199,
+      "sha256": "4cb84429008d894db3edcce826656c5bab6474bf57fb7852d15cb1768492f1f0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation/utils/colormaps.py",
+      "size": 8047,
+      "sha256": "e89d1a5cb88907ae6141b90b45c0760fda047a896bd76788c518ddbcb32a44a9"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/__init__.py",
+      "size": 307,
+      "sha256": "147a332039147fac082a7261d783adbaf77e48362dc2a6ecffc99586135f40b2"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/__init__.py",
+      "size": 405,
+      "sha256": "c1debc8692562cf46d4a2f5fa99d87495649926bc26fee2ccf8f5eb9954f5de6"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/anchor/__init__.py",
+      "size": 264,
+      "sha256": "d813a7df6750eb37589f4bb5ca081f32ee6146700d141dbc20ffbb19d1740bfd"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/anchor/builder.py",
+      "size": 735,
+      "sha256": "4f44e3e7e1c50997a8ba3827252cfc75ec203a8c5de1e001bafbebff6cf40bdc"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/anchor/point_generator.py",
+      "size": 9019,
+      "sha256": "e555acb8c27ac4b4fa4e333679c22e5a3a20c27a49321defceb1ea190337945c"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/box/__init__.py",
+      "size": 294,
+      "sha256": "b8f38afee2f3b0317c930b7539bb2f7c3c533156b89017648e8004e4a927e53d"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/box/builder.py",
+      "size": 613,
+      "sha256": "feeeefd9a472929328b3764c350f3815ac770b3ba7238474fe28ca63aa22d9de"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/box/samplers/__init__.py",
+      "size": 267,
+      "sha256": "2761b7538425351478f5d86cc3d8436074bc3725b93f364e2763dd0ffd35ffd7"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/box/samplers/base_sampler.py",
+      "size": 3911,
+      "sha256": "667d48eb1a945559eef27b69771bf4b9d53ade1e332079e584ac7328df98cf07"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/box/samplers/mask_pseudo_sampler.py",
+      "size": 1692,
+      "sha256": "0562a59e6e4a282988fbed11a1f95c0b984f846cfda8ed88bef737b3259359f0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/box/samplers/mask_sampling_result.py",
+      "size": 2226,
+      "sha256": "2f181a1b525af436a5c516b47171261866e518c4fd654905d228d574bebc9a99"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/box/samplers/sampling_result.py",
+      "size": 5567,
+      "sha256": "f75fe44e9ef9d02a6882be6bba5967bd0075285bc7c4ba141a61f1a563e2bc08"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/utils/__init__.py",
+      "size": 281,
+      "sha256": "0efaad2e935b3471ac22466615f0382ce02079bfbd42b9a91618b63630a131ed"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/utils/dist_utils.py",
+      "size": 534,
+      "sha256": "e59521744508df51befb094c5a9aff415ba0f26c8359cbff6e4c3c4fed4d3e38"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/core/utils/misc.py",
+      "size": 1371,
+      "sha256": "5040d90551406d33fd2bbd9c7b49fb089b9404241baecb66ed08935e95eaf4a9"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/__init__.py",
+      "size": 496,
+      "sha256": "448bd5b43daac51a7bab8f64c2eaf02162fcecf9eb31cad7f54a8fa807a1d4ce"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/backbones/__init__.py",
+      "size": 238,
+      "sha256": "59e14551c3058073b8cd536d65b5b39a12958e9c76c4689c3fc40b73a54d0760"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/backbones/adapter_modules.py",
+      "size": 15425,
+      "sha256": "488ea8e6327b3cff95feedb9dd0a94b0c54a8c93a5884c39e8b884b7856101ee"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/backbones/drop_path.py",
+      "size": 1177,
+      "sha256": "afee5851debf4f8326d5e6992738d2bd467fc1d8f5c051db39571d225eadb3f7"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/backbones/vit.py",
+      "size": 20687,
+      "sha256": "07b4e571567cb9555a7ed47b36b56b1744cc6879bd0c99e00846f3c66bb682a6"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/backbones/vit_adapter.py",
+      "size": 8155,
+      "sha256": "9e145473864d9d06844204a5e7befcf2e3b296f65bc99efa2eef1a833ccbc922"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/builder.py",
+      "size": 644,
+      "sha256": "06019ea2af7415f6c1734aba1c5b24f2c29edd76cb54603e4ec43550572e3e65"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/decode_heads/__init__.py",
+      "size": 248,
+      "sha256": "5b83a1642e1e83183def594f150139f5f4a2c2f0de57848059f918ded9497be7"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/decode_heads/mask2former_head.py",
+      "size": 25875,
+      "sha256": "72f431b9ce9a0293f12d154e671e1624f3b0f046397d069e03eabbf508e92f88"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/losses/__init__.py",
+      "size": 418,
+      "sha256": "64cb65dc7ba1cad57bd143d65d3bb9eb240c07f27c94fc9e3083b9d60ee9274c"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/losses/cross_entropy_loss.py",
+      "size": 11571,
+      "sha256": "6568e9ce64052d01afa926b692037f7bf5a0d1f432f92ac92ba6dd1482f51a37"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/losses/dice_loss.py",
+      "size": 6492,
+      "sha256": "fa7d1ddb256d48c3f2e1f4aa4bbe9c912ad23f9410a226a24486e8ed1e47ad5b"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/losses/match_costs.py",
+      "size": 5501,
+      "sha256": "0bba1998a6f683f1efe903c4d5317e54f924837eee3a3c109ba20718251a4d94"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/plugins/__init__.py",
+      "size": 267,
+      "sha256": "4f8336a58e23f61b07045d011b781f8cde6b307ada755cf3a1d612f3ea3f9e54"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/plugins/msdeformattn_pixel_decoder.py",
+      "size": 10948,
+      "sha256": "cd75c5f5ba2c8272a1dae6840062a30b6868929b0a2a7d0e0430e0c472ee424e"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/segmentors/__init__.py",
+      "size": 269,
+      "sha256": "68f14b4d4bb733b7bd442aff926de5166c56242c1f2b77ca5399b4dccffe36e2"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/segmentors/encoder_decoder_mask2former.py",
+      "size": 10903,
+      "sha256": "352455af915f2adb20a307f29ea164e2be20235ebe9b4abcd81e6b92be083cc9"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/utils/__init__.py",
+      "size": 504,
+      "sha256": "58e2f3354bbeead42c3664fc5f087feb727f1827061da10a68c9b1eff58cd1a6"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/utils/assigner.py",
+      "size": 6525,
+      "sha256": "7568d30bb4b38c5ad698d9c2274efc1a6636560d1ec1f6517589ea517cf381ab"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/utils/point_sample.py",
+      "size": 3975,
+      "sha256": "9eac4671f73658361a5ceeb0fc00a7763c439b1eec6ab858585c902cb3aec3c7"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/utils/positional_encoding.py",
+      "size": 6576,
+      "sha256": "fdfe39b2e3939846e6753e1e08ba61ac31e344c268b5a55bc50afa0780e4d27a"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/models/utils/transformer.py",
+      "size": 42353,
+      "sha256": "12ac1605144749986ea07a84e6354089cc2b0c87e6655201d23513315a7decad"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/ops/modules/__init__.py",
+      "size": 435,
+      "sha256": "0e2ed570d4606b598299e29fc6e2b9f13e09b5dbdf3e7a1cba8b4e9871b63e0c"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/segmentation_m2f/ops/modules/ms_deform_attn.py",
+      "size": 8481,
+      "sha256": "ec57585c159b8c67bf6b1b389d49b31aca51d6958f72be58da197577b1c8984f"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/setup.py",
+      "size": 2144,
+      "sha256": "ad815aa521449df84aebfbb39679684b50919f0d1874c2dfabc01e78ab5c284d"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/eval/utils.py",
+      "size": 5351,
+      "sha256": "9bfd6b24c7229c33f26b459bee66b1101f1e69980e97f2847bb89748f3da4ce3"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/fsdp/__init__.py",
+      "size": 5272,
+      "sha256": "f0e95e06ba4dc75072ccaa4d198e9d325892078e9723009e4f7b2f5f6c33742e"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/__init__.py",
+      "size": 199,
+      "sha256": "4cb84429008d894db3edcce826656c5bab6474bf57fb7852d15cb1768492f1f0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/backbones.py",
+      "size": 5746,
+      "sha256": "636c445fe169f0200efcdd825fda8be1e3edad74b5ad8d758d09380bf52ce187"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/cell_dino/backbones.py",
+      "size": 5209,
+      "sha256": "7976e323b4462f730787ad58eba3a853d4fd2911cf876846573423994aef69cf"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/classifiers.py",
+      "size": 8463,
+      "sha256": "9d3d847b58fe9966dd0ddf5607c0d338ef71d55ff8e1a4144dd15aec1b0cc804"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/depth/__init__.py",
+      "size": 294,
+      "sha256": "564026ad1d667c4c714a584f5e0bc9ba9da4aaf0e8eae79280f76c03c5997909"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/depth/decode_heads.py",
+      "size": 30015,
+      "sha256": "19ec858f6d09cbbe774ef5b9e470edb4bc02d9818b414a2ad4127978ece7af0f"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/depth/encoder_decoder.py",
+      "size": 14260,
+      "sha256": "24efb237ed2bc2338edb68d585997cbf4f6cfc8997468fb32b159120b3d66671"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/depth/ops.py",
+      "size": 1257,
+      "sha256": "3b7126117bf38fe427084a92a4e2aff4c88415735d34307b83a27a208eae0fd6"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/depthers.py",
+      "size": 8395,
+      "sha256": "8b3b8e7266b1585782b5b53e38122bf5d837f4d46347523d1296460824705b73"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/dinotxt.py",
+      "size": 3086,
+      "sha256": "dca1b58ddd8ca236d36deaa0b642d083c1e5d85c3f88c1842a30f5ab1579ab4e"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/text/dinotxt_model.py",
+      "size": 5792,
+      "sha256": "549b41122d9d1b4b57d3f4450c8800d6bcb900e55d12f68276ca388d0fe7821c"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/text/dinov2_wrapper.py",
+      "size": 2664,
+      "sha256": "de0d98337a6a813607f0a02fca9045a58acd6b7d83037202dc548ff891e63a03"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/text/text_tower.py",
+      "size": 3617,
+      "sha256": "0193b2b02c27df423934342b625db8a8dd2199f8b67b9a2d2b04f02dc8711617"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/text/text_transformer.py",
+      "size": 2496,
+      "sha256": "ee3fb3a63e10eca796b9070a71d999cc4fc0911bd6b9e1f94ca0e8dbb9f47258"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/text/tokenizer.py",
+      "size": 1707,
+      "sha256": "0d528d4767cbeea94aa36584a23563cc217ffd137a22b78e398624d1a49889e9"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/text/vision_tower.py",
+      "size": 7023,
+      "sha256": "c3d2392db6c5096861e65229eb00a4246bd6d87a3d29d8238b893ccbb68434a0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/utils.py",
+      "size": 1299,
+      "sha256": "9410fd10f64a003c638a0f6d2d64e65947d5a051bfc943d7e40edc3f160fdf0b"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/hub/xray_dino/backbones.py",
+      "size": 866,
+      "sha256": "4d861044b419b3480ba58ec46011eba7a8bdc2bdfeaaa76da875dcfd1a8fe96e"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/layers/__init__.py",
+      "size": 510,
+      "sha256": "380238900f0a60770e4102ac2849e72b17776f5b12754a600429a3567ef26202"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/layers/attention.py",
+      "size": 3397,
+      "sha256": "aa021503d047191839447ceb7e52ce47a27a81fb3200e0dd3b40b51be301f8c9"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/layers/block.py",
+      "size": 11925,
+      "sha256": "f395ba19dd990213ef4bcf22431463aab59321dc74cc10256c5f10b47690d209"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/layers/dino_head.py",
+      "size": 2065,
+      "sha256": "21a3c10983280abab3103274e690531a6b97f5145d9d909f5b68863c9b972e84"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/layers/drop_path.py",
+      "size": 1191,
+      "sha256": "0e992756228930464d447ea1ab9337e463c8b2e6b265aef0639252d592bf2fef"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/layers/layer_scale.py",
+      "size": 1131,
+      "sha256": "29ac5aee9fcafaf59cfe9f97d6306cf35abfcfeb67333027de297ea908070562"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/layers/mlp.py",
+      "size": 1309,
+      "sha256": "4253b84f60dbd82696d1c4868517ae6f992c3ddec37b0168061679bec203cd59"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py",
+      "size": 2917,
+      "sha256": "087f6d61b517ca6768817885dbcb4dcef7bf48540630f1e819784f6fc666d234"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py",
+      "size": 3300,
+      "sha256": "98a8679ab3557368e75280cd69be03f7c05726f5ec94d99646f5f31c96faf8c4"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/logging/__init__.py",
+      "size": 3386,
+      "sha256": "dd4ac36b4973383998c740c5d4a97660a28efc2eb8380a244bf670b876cf8980"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/logging/helpers.py",
+      "size": 6414,
+      "sha256": "5274d9dede6013a1c77c04f4cbe125fd0dfbd9becc4e7d7b8e3f8b6b1fb31b36"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/loss/__init__.py",
+      "size": 322,
+      "sha256": "e96ee27bdf69fa606165b1358eea2ee526a0c2f65958abc652a6d2365ce7ea38"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/loss/dino_clstoken_loss.py",
+      "size": 3746,
+      "sha256": "a27fe90dcf983298e87fdeb5ac7360c17e6e09964ff3a202758bc467ca096448"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/loss/ibot_patch_loss.py",
+      "size": 5869,
+      "sha256": "731795aed97d86e6f4b2b883b02906e3afa7930ab5aaca3b1e6f9853af6326e2"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/loss/koleo_loss.py",
+      "size": 1656,
+      "sha256": "181cfebdfaf2c52094337f2601afbfc1dc87acba117c66b369d5ddb392187f2b"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/models/__init__.py",
+      "size": 1619,
+      "sha256": "dc41aeee6c18dd61fc0686331b8fd6a3289d676a51bfd707bed6682fae5cc6c6"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/models/vision_transformer.py",
+      "size": 16866,
+      "sha256": "df4834fc4208bfa0ae15e306364271dc984d613684bbdcbada8fd88c1556110f"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/run/__init__.py",
+      "size": 199,
+      "sha256": "4cb84429008d894db3edcce826656c5bab6474bf57fb7852d15cb1768492f1f0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/run/eval/cell_dino/knn.py",
+      "size": 1783,
+      "sha256": "68bee346af9c70e975b1dd43fff1c9d8d69556ed86553c7f224916e44141bd01"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/run/eval/cell_dino/linear.py",
+      "size": 1819,
+      "sha256": "cb79a5273ae406d39d3663eeb7aa276a1a333da93bb0eaeb728a0684bb9f862c"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/run/eval/knn.py",
+      "size": 1719,
+      "sha256": "54792e8d94c29ac463d997afa4d0921e503982d13f70437cce69d8d82c76702a"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/run/eval/linear.py",
+      "size": 1748,
+      "sha256": "eee88314ff0f228a9707539d95c3ae0016b06e68b374ba23db6c713a82e5da11"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/run/eval/log_regression.py",
+      "size": 1814,
+      "sha256": "8c23d0a3bd3fe0efb6b00e63847328b57d4e3e0bcb152f41b954ebce9616c902"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/run/submit.py",
+      "size": 3426,
+      "sha256": "1a2b21531e9d75e90a82513f6700214966175bb6ea4c085598dfcb5404ad1f9f"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/run/train/train.py",
+      "size": 1724,
+      "sha256": "9bda7af313d732ee760ee99a69aa348eeed26954b421fa9018811024b52c1c16"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/thirdparty/CLIP/clip/simple_tokenizer.py",
+      "size": 5040,
+      "sha256": "0e1ad44368b2c157016047143ed015cc94d27c7781b7ff1e49923d47819f4e1d"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/thirdparty/CLIP/LICENSE",
+      "size": 1084,
+      "sha256": "b8a5bb7eb31ed323e08613fb636a3191317237cb7fc7c49368e40d230b30b5ff"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/train/__init__.py",
+      "size": 283,
+      "sha256": "68399bbcf851036ec32e1e51bff1d7b08f1f06466592f5fc54b2e153e7f6bffd"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/train/ssl_meta_arch.py",
+      "size": 19016,
+      "sha256": "f405bc047aa0ee180784be2e2f045aef9c1613e6c3aac1ab6723dacd1588f5c0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/train/train.py",
+      "size": 11402,
+      "sha256": "c35cb56828f3e1a45153fe6529185788d0ae2f94fe7743d06a50ca1ad2b83232"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/utils/__init__.py",
+      "size": 199,
+      "sha256": "4cb84429008d894db3edcce826656c5bab6474bf57fb7852d15cb1768492f1f0"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/utils/checkpoint.py",
+      "size": 2660,
+      "sha256": "9eaaa2350d397067868463d17235608207f42645b0972131123f036fe9bce2f2"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/utils/cluster.py",
+      "size": 3109,
+      "sha256": "92e48e7cc262aef645f19511794a34f5a63a875c1df80f582a92f945e92e41c5"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/utils/config.py",
+      "size": 2283,
+      "sha256": "ad2f8d70c1952652141b85a9498999dd0fb013a998663d4e101060a406107ba8"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/utils/dtype.py",
+      "size": 1141,
+      "sha256": "fe2ce5328be3cbcde97168cae7242da088423dbcd3ec601fb3b1a855cfb798fe"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/utils/param_groups.py",
+      "size": 3864,
+      "sha256": "d57ea031200d92318b8f5c78a1bc47c0fd19d2fd2160b7f78670f0fea492bf83"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/dinov2/utils/utils.py",
+      "size": 3335,
+      "sha256": "52a76a7ce3de406c30d966b5fbf2ac2e1561e2bc3db61668a3fee7dbb8d40604"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/hubconf.py",
+      "size": 1143,
+      "sha256": "3e61e9c4d917389ccd4b2f177a0330c5c7619ed200803005c46b57f01eaa6457"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/LICENSE",
+      "size": 11562,
+      "sha256": "4b63d54afaae8f96b7b3baeb94d902bb50e4f17e3d0fc6cb450bef56cb769616"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/LICENSE_CELL_DINO_CODE",
+      "size": 19049,
+      "sha256": "7d2b4c90f47ccf15081f6ba90538a1005e719a20f370029a51a0296309062df5"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/LICENSE_CELL_DINO_MODELS",
+      "size": 11610,
+      "sha256": "a31e7f6ee446dbc6430e7846853f1605a397c60ab2340500c9be43845289eb9f"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/LICENSE_XRAY_DINO_MODEL",
+      "size": 9917,
+      "sha256": "02745a6f0531073299fa8709624898ff7734394ef21608d623de38660d8542f7"
+    },
+    {
+      "path": "vosr/torch_cache/facebookresearch_dinov2_main/setup.py",
+      "size": 2839,
+      "sha256": "1d8b039b5861bace71b44450d872d997e1c2fa6d4cbb7409986140cec10d613f"
+    },
+    {
+      "path": "vosr/VOSR2/args.json",
+      "size": 816,
+      "sha256": "63b2f423eafae1f684ca860eb8fd0e81aa5fac858397f783d8f337871241c281"
+    },
+    {
+      "path": "vosr/VOSR2/checkpoints/ema_model.safetensors",
+      "size": 5576385424,
+      "sha256": "bdcaa81e4c675b6074de643e27daafe73eb8125d4d0264d1bf30a004e9644b71"
+    }
+  ],
+  "weight_repositories": {
+    "CSWRY/VOSR": "0f78d9d6a51f9fa7e84d2c5c2949e027d496df2c",
+    "numz/SeedVR2_comfyUI": "09ced71023636e9bc8cdf9cdecfb2625d1e691e8",
+    "Manojb/stable-diffusion-2-1-base": "0094d483a120f3f33dafbd187ea4aa60d10de75c"
+  },
+  "pisa_weights": "https://drive.google.com/file/d/1PWFM5zUd6lNMOyKX64anvUXhKEOCrf8L/view"
+}

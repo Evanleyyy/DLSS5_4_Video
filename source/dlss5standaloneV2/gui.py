@@ -23,15 +23,23 @@ import numpy as np
 
 import pipeline
 import dlss_engine
+import dlss_layers
 from gui_layout import LayoutMixin
 from image_editor_ui import ImageEditorMixin
 from export_ui import ExportMixin
 from cache_ui import CacheMixin
+from dlss_settings_ui import LayerSettingsMixin
+from sr_ui import SuperResolutionMixin
+from preset_ui import PresetMixin
+import sr_backend
+import sr_settings
+import task_control
+from playback_shortcuts import PlaybackShortcuts
 
 VIEWS = ["原图", "光流", "深度", "DLSS", "对比"]
 
 
-class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
+class App(PresetMixin, SuperResolutionMixin, LayerSettingsMixin, CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
     def __init__(self, root):
         self.root = root
         self.video = None
@@ -41,6 +49,8 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         self._ui_events = queue.Queue()
         self._closing = False
         self._busy = False
+        self._task_control = None
+        self._task_status = '就绪'
         self.current_is_image = False
         self.image_path = None
         self.image_bgr = None
@@ -54,6 +64,8 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         self.last_export = None
         self._init_image_editor()
         self._build_layout()
+        self._restore_parameter_presets()
+        self._playback_shortcuts = PlaybackShortcuts(self)
         self._update_export_btn()
         root.after(30, self._drain_events)
         root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -79,7 +91,32 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
     def _on_close(self):
         self.pause()
         self._closing = True
+        if self._task_control is not None:
+            self._task_control.resume()
+            self._refresh_task_control(self._task_control)
         self.set_status("等待当前任务结束后关闭...")
+
+    def toggle_generation_pause(self):
+        control = self._task_control
+        if not self._busy or control is None or self._closing:
+            return
+        if control.state == 'running':
+            control.pause()
+            self.logln('已请求暂停；当前 GPU 步骤完成后暂停，保留处理进度。')
+        elif control.state in ('pausing', 'paused'):
+            control.resume()
+            self.logln('继续当前生成任务。')
+        self._refresh_task_control(control)
+
+    def _refresh_task_control(self, control):
+        if control is not self._task_control:
+            return
+        state = control.state if control is not None else 'finished'
+        self.task_pause_btn.configure(
+            text='继续生成' if state in ('pausing', 'paused') else '暂停生成',
+            state='normal' if self._busy and state != 'finished' and not self._closing else 'disabled')
+        prefix = {'pausing': '等待当前步骤结束后暂停… · ', 'paused': '已暂停 · '}.get(state, '')
+        self.status.configure(text=prefix + self._task_status)
 
     def _set_busy(self, busy):
         self._busy = busy
@@ -87,7 +124,9 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
             self._widget_states = []
             def visit(parent):
                 for child in parent.winfo_children():
-                    if isinstance(child, (ttk.Button, ttk.Combobox, ttk.Spinbox,
+                    if child is self.task_pause_btn:
+                        continue
+                    if isinstance(child, (ttk.Button, ttk.Entry, ttk.Combobox, ttk.Spinbox,
                                           ttk.Checkbutton, tk.Scale)):
                         self._widget_states.append((child, child.cget('state')))
                         child.configure(state='disabled')
@@ -100,6 +139,7 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
             self._split_frame = -1
             self._update_export_btn()
             self.display_view()
+        self._refresh_task_control(self._task_control)
 
     def _with_audio(self):
         if threading.current_thread() is not threading.main_thread():
@@ -111,7 +151,9 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         if threading.current_thread() is not threading.main_thread():
             self._post(self.set_status, msg)
             return
-        self.status.config(text=msg); self.root.update_idletasks()
+        self._task_status = msg
+        self._refresh_task_control(self._task_control)
+        self.root.update_idletasks()
 
     def logln(self, msg):
         if threading.current_thread() is not threading.main_thread():
@@ -154,7 +196,7 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
             if img is not None:
                 return img
             p = os.path.join(lm, f"{frame:06d}.png")
-            if os.path.exists(p):
+            if os.path.exists(p) and pipeline.dlss_cache_matches(self.video, self._collect_settings(), frame):
                 return pipeline.imread(p)
         return None
 
@@ -178,7 +220,8 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         if img is None:
             msg = f"{view}：帧 {frame} 尚未生成 (先点对应按钮)"
             if view == "DLSS":
-                msg = "DLSS 预览：请先生成深度/光流，或把【引导模式】设为【关闭】即可实时生成"
+                msg = ('超分预览：请先点击“运行所选引擎”生成结果' if self._collect_settings()['super_resolution']['engine'] != 'dlss' else
+                       "DLSS 预览：请先生成深度/光流，或把【引导模式】设为【关闭】即可实时生成")
             self.canvas.create_text(cw // 2, ch // 2, text=msg,
                                     fill="#888888", font=("Microsoft YaHei", 11))
             return
@@ -215,7 +258,7 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
                 return
             if dlss is None:
                 self._draw_fit(orig, cw, ch)
-                self.canvas.create_text(cw // 2, 16, text="先运行 DLSS 才能对比", fill="#888")
+                self.canvas.create_text(cw // 2, 16, text="先运行所选引擎才能对比", fill="#888")
                 return
             ih, iw = orig.shape[:2]
             scale = min(cw / iw, ch / ih)
@@ -285,16 +328,13 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
 
     # ---------- live DLSS preview ----------
     def _settings_hash(self):
-        s = self._collect_settings()
-        return (s['preset'], s['style'], s['intensity'], s['local_tone'], s['local_struct'],
-                s['skin_struct'], s['use_auto_mask'], s['ui_correction'], s['guidance_mode'],
-                s['depth_convention'], s['motion_scale_x'], s['motion_scale_y'])
+        return dlss_layers.settings_key(self._collect_settings())
 
     def _ensure_live(self, w, h):
         try:
             if self._live is None:
                 self._last_dlss_frame = -1
-                self._live = dlss_engine.Live(w, h, self._collect_settings())
+                self._live = dlss_layers.LayeredLive(w, h, self._collect_settings())
             else:
                 self._live.update(self._collect_settings())
             return self._live
@@ -313,15 +353,15 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         self._last_dlss_frame = -1
 
     def _live_dlss_image(self, frame):
+        if self._collect_settings()['super_resolution']['engine'] != 'dlss':
+            return None
         if self.thread and self.thread.is_alive():
             return None
         sk = self._settings_hash()
         if self._live_cache and self._live_cache[0] == frame and self._live_cache[1] == sk:
             return self._live_cache[2]
         s = self._collect_settings()
-        gm = s['guidance_mode']          # 0=关闭 1=仅光流 2=仅深度 3=深度+光流
-        need_flow = gm in (1, 3)
-        need_depth = gm in (2, 3)
+        need_depth, need_flow = dlss_layers.guidance_needs(s)
         dm, fm, _ = pipeline.out_dirs(self.video)
         dpath = pipeline.find_depth(dm, frame) if need_depth else None
         fpath = os.path.join(fm, f"{frame:06d}.flo") if need_flow else None
@@ -355,6 +395,10 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         return bgr
 
     def on_settings_change(self, event=None):
+        if getattr(self, '_applying_preset', False):
+            return
+        if getattr(self, '_presets_ready', False):
+            self._update_preset_note()
         if self._live_debounce:
             self.root.after_cancel(self._live_debounce)
         self._live_debounce = self.root.after(60, self._refresh_dlss)
@@ -363,6 +407,20 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         if self.thread and self.thread.is_alive():
             return
         self._live_debounce = None
+        if hasattr(self, 'sr_vars'):
+            try:
+                cfg = self._read_sr_settings()
+                sr_settings.save_preferences(cfg)
+            except (ValueError, tk.TclError, OSError) as error:
+                self.set_status('超分参数无效：' + str(error))
+                return
+            if cfg['engine'] != 'dlss':
+                self._close_live()
+                self.image_dlss = None
+                self._split_frame = -1
+                self.set_status('参数已更新，请点击“运行所选引擎”生成新结果')
+                self.display_view()
+                return
         if self.current_is_image and self.image_bgr is not None:
             self._in_thread(self._image_worker)
             return
@@ -379,28 +437,11 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
     # ---------- DLSS settings ----------
     def _collect_settings(self):
         if threading.current_thread() is not threading.main_thread():
-            return dict(self._worker_settings)
-        style_map={"默认":0,"自然":1,"电影":2,"风格3":3}
-        guid_map={"深度+光流":3,"仅光流":1,"仅深度":2,"关闭":0}
-        dconv_map={"使用输入标志":0,"强制正常(0近)":1,"强制反转(0远)":2}
-        try:
-            preset=int(self.v_preset.get().split("#")[-1])
-        except Exception:
-            preset=1
-        return {
-            'preset': preset,
-            'style': style_map.get(self.v_style.get(),0),
-            'intensity': float(self.v_intensity.get()),
-            'local_tone': float(self.v_localTone.get()),
-            'local_struct': float(self.v_localStruct.get()),
-            'skin_struct': float(self.v_skinStruct.get()),
-            'use_auto_mask': int(self.v_autoMask.get()),
-            'ui_correction': int(self.v_uiCorr.get()),
-            'guidance_mode': guid_map.get(self.v_guidance.get(),3),
-            'depth_convention': dconv_map.get(self.v_depthConv.get(),2),
-            'motion_scale_x': float(self.v_motionSX.get()),
-            'motion_scale_y': float(self.v_motionSY.get()),
-        }
+            return dlss_layers.normalize_settings(self._worker_settings)
+        settings = self._read_layer_settings()
+        if hasattr(self, 'sr_vars'):
+            settings['super_resolution'] = self._read_sr_settings()
+        return settings
 
     # ---------- actions ----------
     def import_video(self):
@@ -462,13 +503,18 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         if not p:
             return
         self.pause(); self._close_live()
-        img = pipeline.imread(p, cv2.IMREAD_COLOR)
+        img = pipeline.imread(p, cv2.IMREAD_UNCHANGED)
         if img is None:
             messagebox.showerror("错误", "无法读取该图片"); return
         self.video = None
         self.current_is_image = True
         self.v_export_format.set("图片")
         self.image_path = os.path.abspath(p)
+        self.image_alpha = img[..., 3].copy() if img.ndim == 3 and img.shape[2] == 4 else None
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        elif img.shape[2] == 4:
+            img = img[..., :3].copy()
         self.image_bgr = img
         self.image_dlss = None
         self._reset_image_editor()
@@ -478,8 +524,11 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         self.view_var.set("DLSS")
         self._update_export_btn()
         self.display_view()
-        self.set_status("图片 DLSS 生成中...")
-        self._in_thread(self._image_worker)
+        if self._collect_settings()['super_resolution']['engine'] == 'dlss':
+            self.set_status("图片 DLSS 生成中...")
+            self._in_thread(self._image_worker)
+        else:
+            self.set_status('图片已导入，请点击“运行所选引擎”')
 
     def _image_worker(self):
         try:
@@ -488,10 +537,15 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
                 self.logln("图片 DLSS 失败，显示原图")
             self._post(lambda: (self.set_status("就绪"), self.display_view()))
         except Exception as ex:
+            self.image_dlss = None
             self.logln("图片 DLSS 错误: " + str(ex)); traceback.print_exc()
             self.set_status("出错: " + str(ex)[:80])
 
     def _image_dlss(self, img):
+        task_control.checkpoint()
+        settings = self._collect_settings()
+        if settings['super_resolution']['engine'] != 'dlss':
+            return sr_backend.process_image(img, settings, self.set_progress)
         h, w = img.shape[:2]
         tw = max(8, ((w + 7) // 8) * 8); th = max(8, ((h + 7) // 8) * 8)
         pt = (th - h) // 2; pb = (th - h) - pt; pl = (tw - w) // 2; pr = (tw - w) - pl
@@ -499,8 +553,8 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         if (tw, th) != (w, h):
             rgb = cv2.copyMakeBorder(rgb, pt, pb, pl, pr, cv2.BORDER_REPLICATE)
         rgba = np.dstack([rgb, np.full((th, tw), 255, np.uint8)])
-        s = self._collect_settings(); s['guidance_mode'] = 0   # 无引导
-        live = dlss_engine.Live(tw, th, s)
+        s = dlss_layers.image_settings(self._collect_settings())
+        live = dlss_layers.LayeredLive(tw, th, s)
         try:
             flow = np.zeros((th, tw, 2), np.float32)
             depth = np.zeros((th, tw), np.float32)
@@ -526,26 +580,39 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
         self.logln("导出图片: " + p)
         messagebox.showinfo("导出", "已导出: " + p)
 
-    def _in_thread(self, fn):
-        if self.thread and self.thread.is_alive():
+    def _in_thread(self, fn, pausable=True):
+        if self._closing:
+            return
+        if self._busy or (self.thread and self.thread.is_alive()):
             messagebox.showinfo("忙", "上一个任务还没结束"); return
         self.pause()
         self._close_live()
         self._worker_settings = self._collect_settings()
         self._worker_crf = self._export_crf()
         self._worker_audio = self._with_audio()
+        control = task_control.PauseControl(lambda state: self._post(self._refresh_task_control, control)) if pausable else None
+        self._task_control = control
         self._set_busy(True)
         def worker():
             try:
-                fn()
+                with task_control.bind(control):
+                    task_control.checkpoint()
+                    fn()
             except Exception as ex:
                 self.logln("错误: " + str(ex))
                 self.set_status("出错: " + str(ex)[:80])
                 traceback.print_exc()
             finally:
-                self._post(self._set_busy, False)
+                if control is not None:
+                    control.finish()
+                self._post(self._finish_task, control)
         self.thread = threading.Thread(target=worker, daemon=True)
         self.thread.start()
+
+    def _finish_task(self, control):
+        if control is self._task_control:
+            self._task_control = None
+            self._set_busy(False)
 
     def run_worker(self, kind):
         if self.current_is_image and kind == 'dlss':
@@ -626,10 +693,16 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
             self.logln("处理图片文件夹: " + d)
             self.logln("输出          -> " + out_dir)
             self.set_status("图片批处理 ...")
-            s = self._collect_settings(); s['guidance_mode'] = 0   # 强制无引导
+            s = dlss_layers.image_settings(self._collect_settings())
+            if s['super_resolution']['engine'] != 'dlss':
+                result = sr_backend.process_batch([os.path.join(d, name) for name in files], out_dir, s, self.set_progress)
+                self.logln(f"图片超分完成：{result['count']} 张 -> {out_dir}")
+                self.set_status('批量超分完成')
+                return
             lw = lh = 0
             total = len(files); done = 0
             for i, fn in enumerate(files):
+                task_control.checkpoint()
                 p = os.path.join(d, fn)
                 img = pipeline.imread(p, cv2.IMREAD_COLOR)
                 if img is None:
@@ -645,7 +718,7 @@ class App(CacheMixin, ExportMixin, ImageEditorMixin, LayoutMixin):
                 rgba = np.dstack([rgb, np.full((th, tw), 255, np.uint8)])
                 if live is None or lw != tw or lh != th:
                     if live: live.close()
-                    live = dlss_engine.Live(tw, th, s); lw, lh = tw, th
+                    live = dlss_layers.LayeredLive(tw, th, s); lw, lh = tw, th
                 else:
                     live.update(s)
                 flow = np.zeros((th, tw, 2), np.float32)

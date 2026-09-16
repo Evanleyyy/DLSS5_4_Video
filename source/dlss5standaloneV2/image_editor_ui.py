@@ -223,7 +223,10 @@ class ImageEditorMixin:
         w, h, cw, ch, scale, ox, oy = self._image_geometry()
         matrix = np.float32([[scale, 0, ox], [0, scale, oy]])
         def project(array, border=0):
-            return cv2.warpAffine(array, matrix, (cw, ch), flags=cv2.INTER_LINEAR, borderValue=border)
+            adjusted = matrix.copy()
+            adjusted[0, 0] *= w / array.shape[1]
+            adjusted[1, 1] *= h / array.shape[0]
+            return cv2.warpAffine(array, adjusted, (cw, ch), flags=cv2.INTER_LINEAR, borderValue=border)
         original = project(self.image_bgr, (34, 27, 22))
         processed = project(self.image_dlss, (34, 27, 22)) if self.image_dlss is not None else original.copy()
         alpha = None
@@ -265,10 +268,15 @@ class ImageEditorMixin:
     def _image_output(self):
         if self.image_dlss is None:
             return None
-        if not self.v_mask_enabled.get() or self.selection is None:
-            return self.image_dlss
-        return blend_selection(self.image_bgr, self.image_dlss, self.selection.alpha(self.v_feather.get()),
-                               self.v_mask_mode.get() == '保护涂抹区域')
+        output = self.image_dlss
+        size = (output.shape[1], output.shape[0])
+        if self.v_mask_enabled.get() and self.selection is not None:
+            original = cv2.resize(self.image_bgr, size, interpolation=cv2.INTER_CUBIC)
+            alpha = cv2.resize(self.selection.alpha(self.v_feather.get()), size, interpolation=cv2.INTER_LINEAR)
+            output = blend_selection(original, output, alpha, self.v_mask_mode.get() == '保护涂抹区域')
+        if getattr(self, 'image_alpha', None) is not None:
+            output = np.dstack([output, cv2.resize(self.image_alpha, size, interpolation=cv2.INTER_LINEAR)])
+        return output
 
     def _save_mask(self):
         if not self.current_is_image or self.selection is None:

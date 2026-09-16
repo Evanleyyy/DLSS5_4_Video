@@ -17,6 +17,7 @@ import argparse
 import os
 import shutil
 import subprocess
+import task_control
 import sys
 import time
 import json
@@ -131,6 +132,7 @@ def iter_frames(path, limit=None):
             raise ValueError(f"无法打开视频: {path}")
         i = 0
         while limit is None or i < limit:
+            task_control.checkpoint()
             ok, f = cap.read()
             if not ok:
                 break
@@ -269,6 +271,7 @@ def generate_depth(video, frame_limit=None, progress=None, cancel=None, force=Fa
         if progress: progress(n, n, "cached")
         _finish_cache(depth_dir, record)
         return n
+    task_control.checkpoint()
     model = get_depth_model()
     import torch
     done = 0
@@ -322,6 +325,7 @@ def generate_flow(video, frame_limit=None, progress=None, cancel=None, force=Fal
         if progress: progress(n, n, "cached")
         _finish_cache(flow_dir, record)
         return n
+    task_control.checkpoint()
     (model, transforms) = get_flow_model()
 
     def fed_dims(img):
@@ -382,9 +386,10 @@ def _bundle_ffmpeg():
 @uses_video_cache
 def generate_dlss(video, settings=None, frame_limit=None, progress=None):
     """Process and save one frame at a time, with bounded host memory."""
-    import dlss_engine
-    settings = dict(settings or {'guidance_mode': 0})
-    gm = settings.get('guidance_mode', 0)
+    task_control.checkpoint()
+    import dlss_layers
+    settings = dlss_layers.normalize_settings(settings)
+    need_depth, need_flow = dlss_layers.guidance_needs(settings)
     n, _, w, h = video_info(video)
     n = min(n, frame_limit) if frame_limit else n
     if n <= 0:
@@ -392,20 +397,28 @@ def generate_dlss(video, settings=None, frame_limit=None, progress=None):
     dm, fm, directory = out_dirs(video)
     os.makedirs(directory, exist_ok=True)
     record = _cache_record(video, {'kind': 'dlss', 'settings': settings, 'frames': n})
+    if settings['super_resolution']['engine'] != 'dlss':
+        import sr_backend
+        import sr_settings
+        record['options']['model_assets'] = sr_settings.fingerprint(settings['super_resolution'])
+        _begin_cache(directory, record)
+        result = sr_backend.process_video(video, directory, settings, n, progress)
+        _finish_cache(directory, record)
+        return result['count']
     _begin_cache(directory, record)
     tw, th = (w + 7) // 8 * 8, (h + 7) // 8 * 8
-    live = dlss_engine.Live(tw, th, settings)
+    live = dlss_layers.LayeredLive(tw, th, settings)
     done = 0
     try:
         for i, frame in iter_frames(video, n):
-            dp = find_depth(dm, i) if gm in (2, 3) else None
+            dp = find_depth(dm, i) if need_depth else None
             fp = os.path.join(fm, f'{i:06d}.flo')
-            if gm in (2, 3) and not dp:
+            if need_depth and not dp:
                 raise ValueError(f"缺少第 {i} 帧深度，请先生成深度")
-            if gm in (1, 3) and not os.path.isfile(fp):
+            if need_flow and not os.path.isfile(fp):
                 raise ValueError(f"缺少第 {i} 帧光流，请先生成光流")
-            depth = read_depth(dp) if gm in (2, 3) else np.zeros((h, w), np.float32)
-            flow = read_flo(fp) if gm in (1, 3) else np.zeros((h, w, 2), np.float32)
+            depth = read_depth(dp) if need_depth else np.zeros((h, w), np.float32)
+            flow = read_flo(fp) if need_flow else np.zeros((h, w, 2), np.float32)
             if depth is None or depth.shape != (h, w) or flow.shape != (h, w, 2):
                 raise ValueError("缓存尺寸与视频不一致，请重新生成深度和光流")
             rgba = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
@@ -421,10 +434,41 @@ def generate_dlss(video, settings=None, frame_limit=None, progress=None):
                 progress(done, n, 'ok')
         if done != n:
             raise RuntimeError(f"视频提前结束，预期 {n} 帧，实际 {done} 帧")
+        from frame_sequence import validate_frames
+        validate_frames(directory, n, (w, h))
         _finish_cache(directory, record)
         return done
     finally:
         live.close()
+
+
+def validate_dlss_frames(video, settings, frames):
+    from frame_sequence import validate_frames
+    from sr_settings import normalize
+    _, _, width, height = video_info(video)
+    cfg = normalize(settings.get('super_resolution'))
+    scale = 1 if cfg['engine'] == 'dlss' else cfg['scale']
+    validate_frames(out_dirs(video)[2], frames, (width * scale, height * scale))
+
+
+def dlss_cache_matches(video, settings, frame=0):
+    """Never show an older one/two-pass result under a different parameter panel."""
+    from dlss_layers import settings_key
+    try:
+        with open(os.path.join(out_dirs(video)[2], 'cache.json'), encoding='utf-8') as handle:
+            cached = json.load(handle)
+        record = cached['record']
+        options = record['options']
+        import sr_settings
+        if settings.get('super_resolution', {}).get('engine', 'dlss') != 'dlss':
+            assets = json.loads(json.dumps(sr_settings.fingerprint(settings['super_resolution'])))
+            if options.get('model_assets') != assets:
+                return False
+        return (cached['complete'] is True and options['kind'] == 'dlss' and
+                record == _cache_record(video, options) and options['frames'] > frame and
+                settings_key(options['settings']) == settings_key(settings))
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
 
 
 @uses_video_cache

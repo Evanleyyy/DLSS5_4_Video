@@ -10,8 +10,9 @@ import cv2
 import numpy as np
 
 import pipeline
+import task_control
 
-CHANNELS = {'original': '原图', 'dlss': 'DLSS 结果', 'depth': '深度图',
+CHANNELS = {'original': '原图', 'dlss': '处理结果（所选引擎）', 'depth': '深度图',
             'flow': '光流可视化', 'mask': '局部遮罩'}
 
 
@@ -24,6 +25,8 @@ def _video_frame(image):
         raise ValueError('视频帧必须为 8 位或 16 位图像')
     if image.ndim == 2:
         image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    if image.ndim == 3 and image.shape[2] == 4:
+        image = image[..., :3]
     if image.ndim != 3 or image.shape[2] != 3 or min(image.shape[:2]) < 1:
         raise ValueError('导出帧尺寸或颜色通道不正确')
     return np.ascontiguousarray(image)
@@ -64,9 +67,13 @@ def encode_video(images, count, fps, destination, *, audio_source=None, crf=18,
             written = 0
             try:
                 for frame in itertools.chain([first], iterator):
+                    task_control.checkpoint()
                     frame = _video_frame(frame)
-                    if frame.shape != first.shape or written >= count:
-                        raise ValueError('导出帧尺寸或帧数不一致')
+                    if written >= count:
+                        raise ValueError(f'导出帧数超过预期：需要 {count} 帧，收到第 {written + 1} 帧')
+                    if frame.shape != first.shape:
+                        raise ValueError(f'导出第 {written + 1} 帧尺寸不一致：'
+                                         f'应为 {w}×{h}，实际 {frame.shape[1]}×{frame.shape[0]}')
                     process.stdin.write(frame.tobytes())
                     written += 1
                     if progress:
@@ -167,6 +174,7 @@ def export_channels(request, settings, *, progress=None, log=None):
 def _export_channels(request, settings, *, progress=None, log=None):
     """A request is a main-thread snapshot. No Tk variables are accessed here."""
     validate_request(request)
+    task_control.checkpoint()
     channels = request['channels']
     progress = progress or (lambda *args: None)
     log = log or (lambda text: None)
@@ -180,16 +188,27 @@ def _export_channels(request, settings, *, progress=None, log=None):
             images['depth'] = np.rint(pipeline.infer_depth_frame(images['original']) * 65535).astype(np.uint16)
         indices = range(1)
     else:
-        guidance = settings.get('guidance_mode', 0)
-        need_depth = 'depth' in channels or ('dlss' in channels and guidance in (2, 3))
-        need_flow = 'flow' in channels or ('dlss' in channels and guidance in (1, 3))
+        from dlss_layers import guidance_needs
+        layer_depth, layer_flow = guidance_needs(settings)
+        need_depth = 'depth' in channels or ('dlss' in channels and layer_depth)
+        need_flow = 'flow' in channels or ('dlss' in channels and layer_flow)
         for needed, operation, label in [(need_depth, pipeline.generate_depth, '生成深度'),
                                           (need_flow, pipeline.generate_flow, '生成光流')]:
             if needed:
                 operation(source, progress=lambda i, n, status, label=label: progress(i, n, label))
         if 'dlss' in channels:
-            pipeline.generate_dlss(source, settings=settings,
-                progress=lambda i, n, status: progress(i, n, '生成 DLSS'))
+            cached = pipeline.dlss_cache_matches(source, settings, request['frames'] - 1)
+            if cached:
+                progress(0, request['frames'], '检查处理结果缓存')
+                try:
+                    pipeline.validate_dlss_frames(source, settings, request['frames'])
+                except ValueError as error:
+                    log(str(error) + '；缓存不完整，将重新生成处理结果。')
+                    cached = False
+            if not cached:
+                pipeline.generate_dlss(source, settings=settings,
+                    progress=lambda i, n, status: progress(i, n, '生成处理结果'))
+                pipeline.validate_dlss_frames(source, settings, request['frames'])
         if request['format'] == '图片' and request['scope'] == '当前帧':
             indices = range(request['frame'], request['frame'] + 1)
         else:
@@ -200,6 +219,7 @@ def _export_channels(request, settings, *, progress=None, log=None):
     log('输出目录: ' + str(output))
     outputs = []
     for channel in channels:
+        task_control.checkpoint()
         label = CHANNELS[channel]
         if request['format'] == '视频':
             if request['is_image']:
@@ -219,6 +239,7 @@ def _export_channels(request, settings, *, progress=None, log=None):
             folder.mkdir(exist_ok=True)
             iterator = [images[channel]] if request['is_image'] else _channel_frames(source, channel, indices)
             for index, image in zip(indices, iterator, strict=True):
+                task_control.checkpoint()
                 name = f'{index:06d}.png' if sequence else f'{stem}_{channel}' + ('' if request['is_image'] else f'_{index:06d}') + '.png'
                 path = folder / name
                 pipeline.imwrite(str(path), image)

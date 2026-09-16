@@ -138,6 +138,10 @@ def video_files(video, kind):
 
 def inventory(video=None):
     entries, warnings = runtime_entries(runtime_root())
+    try:
+        entries.extend(sr_cache_entries())
+    except (OSError, ValueError) as error:
+        warnings.append(str(error))
     if video:
         for kind in ('depth', 'flow', 'dlss'):
             try:
@@ -148,6 +152,57 @@ def inventory(video=None):
             except (OSError, ValueError, KeyError, TypeError) as error:
                 warnings.append(str(error))
     return entries, warnings
+
+
+def sr_cache_entries():
+    import sr_settings
+    root = safe_path(sr_settings.data_root() / 'sr-cache')
+    entries = []
+    if root.is_dir():
+        for folder in root.iterdir():
+            safe_path(folder)
+            if not re.fullmatch(r'job-[0-9a-f]{32}', folder.name) or not folder.is_dir():
+                continue
+            try:
+                owner = json.loads((folder / 'owner.json').read_text())
+                if owner.get('application') != 'DLSS5Standalone':
+                    continue
+                entries.append({'type': 'sr', 'path': str(folder), 'size': folder_size(folder)})
+            except (OSError, ValueError):
+                continue
+    return entries
+
+
+def clean_sr_cache(entry):
+    import psutil
+    import sr_settings
+    root = safe_path(sr_settings.data_root() / 'sr-cache')
+    folder = safe_path(entry['path'])
+    if folder.parent != root or not re.fullmatch(r'job-[0-9a-f]{32}', folder.name):
+        raise ValueError('不是本软件的超分缓存目录')
+    with video_cache_guard(str(root)):
+        owner = json.loads((folder / 'owner.json').read_text())
+        if owner.get('application') != 'DLSS5Standalone':
+            raise ValueError('超分缓存归属不匹配')
+        if owner.get('pid') != os.getpid() and psutil.pid_exists(owner.get('pid', -1)):
+            raise RuntimeError('其他软件窗口正在使用此缓存，请关闭对应窗口后再清理')
+        if (folder / 'active').exists():
+            raise RuntimeError('超分任务正在使用此缓存')
+        removed = 0
+        # Recheck every concrete generated file, never follow links or touch model directories.
+        def remove_files(directory):
+            nonlocal removed
+            for path in list(directory.iterdir()):
+                safe_path(path)
+                if path.is_dir():
+                    remove_files(path)
+                    path.rmdir()
+                else:
+                    removed += path.stat().st_size
+                    path.unlink()
+        remove_files(folder)
+        folder.rmdir()
+        return removed
 
 
 def clean_video(video, kind):

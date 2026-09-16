@@ -83,10 +83,12 @@ class LayoutMixin:
     def _scale(self, grid, label, variable, low, high, step, command):
         cell = ttk.Frame(grid)
         ttk.Label(cell, text=label).pack(fill='x')
-        tk.Scale(cell, variable=variable, from_=low, to=high, resolution=step,
+        scale = tk.Scale(cell, variable=variable, from_=low, to=high, resolution=step,
                  orient='horizontal', length=1, highlightthickness=0,
-                 command=lambda value: command()).pack(fill='x')
+                 command=lambda value: command())
+        scale.pack(fill='x')
         grid.add(cell)
+        return scale
 
     def _note(self, parent, text):
         label = ttk.Label(parent, text=text, foreground='#606873', justify='left')
@@ -108,7 +110,7 @@ class LayoutMixin:
         self.tabs = ttk.Notebook(self.inspector)
         self.tabs.pack(fill='both', expand=True)
         self.pages = {}
-        for name in ('素材', '参数', '遮罩', '导出', '缓存'):
+        for name in ('素材', '超分', '参数', '遮罩', '导出', '缓存'):
             page = ScrollPage(self.tabs)
             self.pages[name] = page
             self.tabs.add(page, text=' ' + name + ' ')
@@ -118,6 +120,7 @@ class LayoutMixin:
         self.log.pack(fill='both', expand=True)
         self._build_media(self.pages['素材'].body)
         self._build_settings(self.pages['参数'].body)
+        self._build_super_resolution(self.pages['超分'].body)
         self._build_mask_controls(self.pages['遮罩'].body)
         self._build_export(self.pages['导出'].body)
         self._build_cache(self.pages['缓存'].body)
@@ -170,8 +173,11 @@ class LayoutMixin:
         grid = self._section(parent, '生成与处理')
         self.depth_btn = self._button(grid, '生成深度', lambda: self.run_worker('depth'))
         self.flow_btn = self._button(grid, '生成光流', lambda: self.run_worker('flow'))
-        self._button(grid, '运行 DLSS', lambda: self.run_worker('dlss'))
-        self._note(parent, '图片导入后自动处理；单图使用无引导模式。视频的深度和光流结果会保存为缓存。')
+        self._button(grid, '运行所选引擎', lambda: self.run_worker('dlss'))
+        self.task_pause_btn = self._button(grid, '暂停生成', self.toggle_generation_pause)
+        self.task_pause_btn.configure(state='disabled')
+        self._note(parent, '生成时可暂停／继续。当前帧、分块或 GPU 步骤完成后生效；暂停保留进度和显存，继续不会从头生成。')
+        self._note(parent, '在“超分”页选择模型。DLSS 图片导入后自动处理；扩散超分点击运行后处理。视频的深度和光流结果会保存为缓存。')
         self._note(parent, '局部遮罩用于当前单张图片。批量图片和视频按“参数”面板设置处理。')
 
     def _build_preview(self, parent):
@@ -201,36 +207,15 @@ class LayoutMixin:
         self.fslider.grid(row=0, column=0, sticky='ew')
         self.flabel = ttk.Label(timeline, text='0', width=6, anchor='center')
         self.flabel.grid(row=0, column=1)
-        self.play_btn = ttk.Button(timeline, text='播放', command=self.play)
+        self.play_btn = ttk.Button(timeline, text='播放（空格）', command=self.play)
         self.play_btn.grid(row=0, column=2, sticky='ew', padx=2)
-        self.pause_btn = ttk.Button(timeline, text='暂停', command=self.pause)
+        self.pause_btn = ttk.Button(timeline, text='暂停（空格）', command=self.pause)
         self.pause_btn.grid(row=0, column=3, sticky='ew', padx=2)
         timeline.columnconfigure(2, weight=1, uniform='playback')
         timeline.columnconfigure(3, weight=1, uniform='playback')
 
     def _build_settings(self, parent):
-        for name, value in [('preset', 'Preset #1'), ('style', '默认'), ('guidance', '关闭'),
-                            ('depthConv', '强制反转(0远)')]:
-            setattr(self, 'v_' + name, tk.StringVar(value=value))
-        for name in ('intensity', 'localTone', 'localStruct', 'skinStruct', 'motionSX', 'motionSY'):
-            setattr(self, 'v_' + name, tk.DoubleVar(value=1.0))
-        self.v_autoMask = tk.IntVar(value=1)
-        self.v_uiCorr = tk.IntVar(value=0)
-        grid = self._section(parent, '风格与强度')
-        self._choice(grid, '预设', self.v_preset, ['Preset #1', 'Preset #2', 'Preset #3'], self.on_settings_change)
-        self._choice(grid, '风格', self.v_style, ['默认', '自然', '电影', '风格3'], self.on_settings_change)
-        for label, variable, high, step in [('处理强度', self.v_intensity, 1, .05),
-            ('局部色调', self.v_localTone, 5, .1), ('局部结构', self.v_localStruct, 5, .1),
-            ('皮肤结构', self.v_skinStruct, 5, .1)]:
-            self._scale(grid, label, variable, 0, high, step, self.on_settings_change)
-        grid = self._section(parent, '自动修正')
-        grid.add(ttk.Checkbutton(grid, text='自动遮罩', variable=self.v_autoMask, command=self.on_settings_change))
-        grid.add(ttk.Checkbutton(grid, text='界面元素校正', variable=self.v_uiCorr, command=self.on_settings_change))
-        grid = self._section(parent, '视频引导与运动')
-        self._choice(grid, '引导模式', self.v_guidance, ['深度+光流', '仅光流', '仅深度', '关闭'], self.on_settings_change)
-        self._choice(grid, '深度约定', self.v_depthConv, ['使用输入标志', '强制正常(0近)', '强制反转(0远)'], self.on_settings_change)
-        self._scale(grid, '水平运动缩放', self.v_motionSX, 0, 2, .1, self.on_settings_change)
-        self._scale(grid, '垂直运动缩放', self.v_motionSY, 0, 2, .1, self.on_settings_change)
+        self._build_layer_settings(parent)
 
     def _build_export(self, parent):
         from media_export import CHANNELS

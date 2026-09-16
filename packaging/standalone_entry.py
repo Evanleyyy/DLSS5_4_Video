@@ -9,13 +9,23 @@ from datetime import datetime
 
 def main():
     multiprocessing.freeze_support()
-    verification = '--verify-package' in sys.argv
+    sr_verification = '--verify-sr' in sys.argv
+    pause_verification = '--verify-pause' in sys.argv
+    playback_verification = '--verify-playback' in sys.argv
+    export_cache_verification = '--verify-export-cache' in sys.argv
+    preset_verification = '--verify-presets' in sys.argv
+    verification = '--verify-package' in sys.argv or sr_verification or pause_verification or playback_verification or export_cache_verification or preset_verification
     if verification:
-        position = sys.argv.index('--verify-package')
+        position = sys.argv.index('--verify-presets' if preset_verification else '--verify-export-cache' if export_cache_verification else '--verify-playback' if playback_verification else '--verify-pause' if pause_verification else '--verify-sr' if sr_verification else '--verify-package')
         log_dir = Path(sys.argv[position + 1]).resolve()
+        os.environ['DLSS5_DATA_ROOT'] = str(log_dir / 'app-data')
     else:
-        local_data = os.environ.get('LOCALAPPDATA', str(Path.home()))
-        log_dir = Path(local_data) / 'DLSS5Standalone' / 'logs'
+        if (Path(sys.executable).parent / 'runtime').is_dir():
+            os.environ.setdefault('DLSS5_DATA_ROOT', str(Path(sys.executable).parent / 'data'))
+            log_dir = Path(os.environ['DLSS5_DATA_ROOT']) / 'logs'
+        else:
+            local_data = os.environ.get('LOCALAPPDATA', str(Path.home()))
+            log_dir = Path(local_data) / 'DLSS5Standalone' / 'logs'
     log_dir.mkdir(parents=True, exist_ok=True)
     os.environ['DLSS5_LOG_DIR'] = str(log_dir)
     bundle = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
@@ -24,7 +34,22 @@ def main():
         sys.stdout = sys.stderr = log
         print(f'[{datetime.now().isoformat(timespec="seconds")}] 启动 {sys.executable}')
         try:
-            if verification:
+            if preset_verification:
+                from preset_verification import verify
+                verify(log_dir)
+            elif export_cache_verification:
+                from export_cache_verification import verify
+                verify(log_dir)
+            elif playback_verification:
+                from playback_verification import verify
+                verify(log_dir)
+            elif pause_verification:
+                from pause_verification import verify
+                verify(log_dir)
+            elif sr_verification:
+                from sr_verification import verify
+                verify(log_dir)
+            elif verification:
                 from packaged_selftest import verify
                 verify(log_dir, bundle)
             else:
