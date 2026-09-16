@@ -2,15 +2,34 @@
 
 面向 Windows 的本地图片与视频处理工具，基于 [purkatyy/DLSS5- 的 V2 发布包](https://github.com/purkatyy/DLSS5-/releases/tag/dlss5v2)进行稳定性修复和界面扩展。
 
+当前代码版本 **0.3.7**：安装和首次使用时优先校验并复用本地模型，缺失文件从官方源下载，支持断点续传和校验。后续安装包不再内嵌模型，模型也不再上传本项目 GitHub。详见[模型按需部署说明](docs/模型按需部署说明.md)。保留命名参数预设、导出缓存修复、生成暂停及空格播放功能。
+
+## 下载与安装
+
+[下载 0.3.7 安装包](https://github.com/Evanleyyy/DLSS5_4_Video/releases/tag/v0.3.7)
+
+- **首次安装**：下载 `DLSS5_Setup_0.3.7.exe` 和全部 4 个同名 `.bin` 分卷，放在同一目录后运行安装器。完整包约 **6.54 GB**，包含程序和运行库，不含模型权重。
+- **已有安装**：0.3.0～0.3.6 用户只需约 **35 MB** 的 `DLSS5_Update_0.3.7.exe`，选择原安装目录。
+- **模型准备**：先校验并复用本地文件，缺失或损坏的文件从官方源下载。模型就绪后可断网推理。
+- 下载对应 `_SHA256.txt` 校验文件完整性。GitHub 的 Source code 压缩包仅含源码。
+
+PiSA 依赖的 SD 2.1 官方源在 2026-09-17 返回 401，已有本地文件可继续复用，缺失时需先解决上游访问或选择已有模型目录。后续不再分发模型，GitHub 上旧版含模型的离线安装包已由新版替代。
+
+模型路径、官方来源和部署步骤见[模型按需部署说明](docs/模型按需部署说明.md)。
+
 ## 功能
 
-- **分类界面**：素材、参数、遮罩、导出、缓存、日志；支持窗口自适应、控件伸缩换行和分类滚动。
+- **分类界面**：素材、超分、参数、遮罩、导出、缓存、日志；支持窗口自适应、控件伸缩换行和分类滚动。
+- **参数预设**：自定义名称、另存为新预设、保存修改、改名、应用及删除；保存整套参数并在重启时恢复，数据位于安装目录 `data/parameter_presets.json`。
+- **暂停／继续生成**：支持图片、视频、深度、光流、扩散超分和导出；区分等待暂停与已暂停，继续保留进度，任务结束后恢复按钮状态。
 - **图片预览**：滚轮缩放、拖动、原始大小、适应窗口及原图/结果对比。
 - **局部遮罩**：画笔、橡皮、矩形选区、撤销/重做、反选和边缘羽化；默认只处理涂抹区域。
 - **处理流程**：单图与批量图片 DLSS、视频 DLSS、Depth Anything V2 深度及 RAFT 光流，逐帧处理并缓存结果。
+- **双层 DLSS**：第二层连续处理第一层结果，两层预设和完整参数独立；整体权重 0–100% 混合最终效果与原图，兼容局部遮罩和导出。详见[双层操作说明](docs/双层DLSS操作说明.md)。
+- **前后独立降噪**：DLSS 前与全部 DLSS 层之后分别提供开关、亮度/色彩强度及 0–100% 权重，默认关闭；复用 OpenCV，无需额外模型。详见[降噪操作说明](docs/前后降噪操作说明.md)。
 - **多通道导出**：输出类型可选 PNG 图片或 MP4 视频，勾选原图、DLSS、深度、光流可视化或局部遮罩后分别保存。
 - **输出范围**：视频可提取当前帧或全部帧序列；单张图片可生成指定时长和帧率的静态视频。
-- **独立打包**：将 Python、CUDA 运行库、模型、FFmpeg 和界面封装成单文件 EXE。
+- **安装包部署**：包含 Python、CUDA 运行库、FFmpeg 和界面；模型先复用本地文件，缺失时从官方源下载，支持选择安装位置、模型组件、快捷方式、升级与卸载。
 
 ## 仓库内容
 
@@ -18,12 +37,12 @@
 
 ```text
 source/dlss5standaloneV2/   应用及模型结构源码
-packaging/                 独立 EXE 启动器、构建配置及打包后验证
+packaging/                 安装包构建配置、模型清单及打包后验证
 tests/                     回归与界面测试
 docs/                      图片编辑与多通道导出说明
 launch.py                  本地启动入口
 requirements-local.lock.txt
-打包EXE.ps1
+打包安装包.ps1
 ```
 
 ## 从源码启动
@@ -48,11 +67,11 @@ py -3.12 -m venv .venv
 |---|---|
 | 宿主 DLL | `source/dlss5standaloneV2/dlssnr_host.dll` |
 | DLSS 运行库 | `source/dlss5standaloneV2/nvngx_dlssnr.dll` |
-| Depth Anything V2 Large 权重 | `source/dlss5standaloneV2/models/checkpoints/depth_anything_v2_vitl.pth` |
-| RAFT Large 权重 | `source/dlss5standaloneV2/torch_home/hub/checkpoints/raft_large_C_T_SKHT_V2-ff5fadd5.pth` |
 | 支持 H.264/AAC 的 FFmpeg | `runtime/ffmpeg.exe` |
 
 本仓库保留模型结构代码，不包含模型权重。原发布包的二进制校验信息及审查范围见[代码审查与部署说明](代码审查与部署说明.md)。
+
+模型可在首次使用时自动准备，也可执行 `.\.venv\Scripts\python.exe tools/download_sr_assets.py --engine guidance` 提前准备深度与光流。三套超分引擎另外需要 `runtime/python`、独立推理依赖与引擎源码，构建环境见[打包说明](packaging/打包说明.md)。
 
 ### 3. 启动
 
@@ -68,7 +87,12 @@ py -3.12 -m venv .venv
 
 - [界面、缩放、遮罩与羽化](docs/界面与遮罩操作说明.md)
 - [图片、视频与多通道导出](docs/多通道导出说明.md)
-- [独立 EXE 构建与验证](packaging/打包说明.md)
+- [前置、后置降噪与权重](docs/前后降噪操作说明.md)
+- [本地超分、模型选择与安装](docs/本地超分操作说明.md)
+- [暂停、继续生成与更新安装](docs/暂停生成操作说明.md)
+- [空格播放／暂停快捷键](docs/空格播放操作说明.md)
+- [模型按需下载、复用与校验](docs/模型按需部署说明.md)
+- [安装包构建与验证](packaging/打包说明.md)
 
 局部手绘遮罩作用于当前单张图片；静态视频重复显示图片，不生成新的运动。单图没有帧间光流，对应导出选项会置灰。
 
@@ -91,13 +115,17 @@ py -3.12 -m venv .venv
 
 后两项 GPU 界面测试使用第一项测试生成的本地素材。回归测试还覆盖手动缓存清理、原始素材及导出保护、处理互斥。`tests/gui_cache_smoke.py` 验证缓存界面，`tests/verify_launcher.py` 验证真实启动器的多开和关闭清理流程。测试生成文件保留在本地并由 `.gitignore` 排除。
 
+双层 GPU 数值验证使用 `tests/layers_gpu_smoke.py`；双层界面、遮罩导出、批量图片及视频验证使用 `tests/gui_layers_smoke.py`，后者使用独立 EXE 自检生成的短视频。前后降噪验证使用 `tests/gui_denoise_smoke.py`。可选超分引擎、透明度及 GUI 导出使用 `tests/gui_sr_smoke.py`；1080p、四倍批量图片、连续帧视频与音频使用 `tests/sr_delivery_checks.py`。暂停与继续使用 `tests/gui_pause_smoke.py`，安装版支持 `--verify-pause` 自检。当前回归测试共 79 项，另有预设、播放和模型下载等真实界面测试。
+
 ## 打包
 
-按照[打包说明](packaging/打包说明.md)准备 PyInstaller 和 7-Zip Extra，然后运行 `打包EXE.ps1`。构建结果为 `output/DLSS5_Standalone.exe`，约 3.37 GB，首次启动解压运行资源并复用后续缓存。
+按照[打包说明](packaging/打包说明.md)准备依赖和 Inno Setup。`打包安装包.ps1 -UpdateOnly` 生成 `output/DLSS5_Update_0.3.7.exe`，用于已有 0.3.0～0.3.6 安装版；不带参数生成 0.3.7 完整安装包及运行库分卷。两种包均不内嵌模型。模型下载验证使用安装版 `--verify-model-assets`，参数预设使用 `--verify-presets`，播放快捷键使用 `--verify-playback`。
+
+旧单文件 EXE 的启动器与缓存测试保留用于兼容性验证，新版本统一通过安装包交付。
 
 ## 缓存管理
 
-主界面“缓存”分类提供占用统计、勾选清理和取消待清理任务。普通退出保留缓存；只有手动点击清理后，正在使用的运行缓存才会在相关窗口全部关闭后删除。原视频旁的深度、光流、DLSS 中间帧可以单独清理，原始素材及正常导出文件保留。详见[缓存管理说明](docs/缓存管理说明.md)。
+主界面“缓存”分类提供占用统计与勾选清理。安装版直接使用已安装运行库，模型不作为缓存；超分临时文件在安装目录的 `data/sr-cache`，可手动清理。原视频旁的深度、光流及处理结果帧可单独清理，原始素材及导出文件保留。旧单 EXE 的运行环境清理机制见[缓存管理说明](docs/缓存管理说明.md)。
 
 ## 来源与许可证
 

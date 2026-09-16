@@ -55,6 +55,8 @@ def verify_editor(app, directory, original, processed, screenshots=False):
             body_width = page.body.winfo_width()
             def inspect(widget):
                 for child in widget.winfo_children():
+                    if not child.winfo_viewable():
+                        continue
                     if isinstance(child, (ttk.Button, ttk.Checkbutton, ttk.Combobox, ttk.Spinbox, tk.Scale)):
                         left = child.winfo_rootx() - page.body.winfo_rootx()
                         assert left >= 0 and left + child.winfo_width() <= body_width + 2, (width, name, str(child), left, child.winfo_width(), body_width)

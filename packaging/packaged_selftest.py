@@ -1,5 +1,6 @@
 """Exercise bundled assets, GPU inference and GUI without external Python."""
 import json
+import os
 import subprocess
 import sys
 import time
@@ -40,8 +41,10 @@ def verify(directory, bundle):
         for module in (cv2, np, torch, torchvision, pipeline, dlss_engine, gui):
             assert Path(module.__file__).resolve().is_relative_to(bundle.resolve()), module.__file__
         assert Path(pipeline.BASE).resolve() == bundle.resolve()
-        for asset in (pipeline.DAV2_CKPT, pipeline.RAFT_PTH, dlss_engine.HOST_DLL,
-                      dlss_engine.DLSSNR_DLL, pipeline._bundle_ffmpeg()):
+        from model_assets import guidance_path
+        for kind in ('depth', 'flow'):
+            assert Path(guidance_path(kind)).is_file()
+        for asset in (dlss_engine.HOST_DLL, dlss_engine.DLSSNR_DLL, pipeline._bundle_ffmpeg()):
             assert Path(asset).is_file(), asset
             assert Path(asset).resolve().is_relative_to(bundle.resolve()), asset
 
@@ -81,9 +84,13 @@ def verify(directory, bundle):
                 from export_verification import verify_export
                 stage('multi_channel_export', lambda: verify_export(app, directory / 'channels', sample, picture, output_image))
                 app._close_live()
+                from layers_verification import verify_layers
+                stage('two_layer_dlss', lambda: verify_layers(app, directory / 'layers', sample))
+                from denoise_verification import verify_denoise
+                stage('pre_post_denoise', lambda: verify_denoise(app, directory / 'denoise'))
                 from cache_verification import verify_cache
                 stage('manual_cache_cleanup', lambda: verify_cache(app, directory / 'cache-controls',
-                      request_runtime_cleanup=True))
+                      request_runtime_cleanup=bool(os.environ.get('DLSS5_LAUNCHER_PATH'))))
                 return editor_result
             finally:
                 root.destroy()

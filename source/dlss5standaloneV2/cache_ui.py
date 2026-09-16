@@ -17,7 +17,7 @@ class CacheMixin:
         self.cache_summary = self._note(parent, '尚未扫描。运行缓存位置：\n' + str(cache_manager.runtime_root()))
         self.cache_list = ttk.Frame(parent)
         self.cache_list.pack(fill='x')
-        self._note(parent, '运行环境：旧版本可立即清理。正在使用的新版本将在使用它的所有窗口关闭后清理；下次启动会重新解压约 6.5 GB。')
+        self._note(parent, '安装版直接使用安装目录的运行库，安装文件和模型不会列为缓存。旧单 EXE 的解压环境仍由旧启动器管理。超分临时输入与任务日志可以单独清理。')
         self._note(parent, '视频缓存：只列出当前视频的深度、光流和 DLSS 中间帧，清理后需重新生成。正在其他窗口处理的视频会跳过清理。')
 
     def refresh_caches(self):
@@ -25,7 +25,7 @@ class CacheMixin:
             return
         video = self.video
         self.set_status('正在统计缓存占用…')
-        self._in_thread(lambda: self._scan_cache_worker(video))
+        self._in_thread(lambda: self._scan_cache_worker(video), pausable=False)
 
     def _scan_cache_worker(self, video):
         entries, warnings = cache_manager.inventory(video)
@@ -36,7 +36,7 @@ class CacheMixin:
         for child in self.cache_list.winfo_children():
             child.destroy()
         self._cache_rows = []
-        labels = {'runtime': '运行环境', 'depth': '视频深度', 'flow': '视频光流', 'dlss': '视频 DLSS'}
+        labels = {'runtime': '运行环境', 'depth': '视频深度', 'flow': '视频光流', 'dlss': '视频处理结果', 'sr': '超分临时文件'}
         for entry in entries:
             frame = ttk.LabelFrame(self.cache_list, text=labels[entry['type']], padding=6)
             frame.pack(fill='x', pady=(0, 8))
@@ -66,7 +66,7 @@ class CacheMixin:
             messagebox.showinfo('清理缓存', '请先刷新列表并勾选要清理的缓存。')
             return
         self.set_status('正在清理勾选缓存…')
-        self._in_thread(lambda: self._clean_cache_worker(entries))
+        self._in_thread(lambda: self._clean_cache_worker(entries), pausable=False)
 
     def cancel_cache_cleanup(self):
         if self._busy:
@@ -75,7 +75,7 @@ class CacheMixin:
         if not entries:
             messagebox.showinfo('清理缓存', '列表中没有待清理任务，请先刷新确认。')
             return
-        self._in_thread(lambda: self._clean_cache_worker(entries, cancel=True))
+        self._in_thread(lambda: self._clean_cache_worker(entries, cancel=True), pausable=False)
 
     def _clean_cache_worker(self, entries, cancel=False):
         freed, deferred, skipped = 0, 0, 0
@@ -87,6 +87,9 @@ class CacheMixin:
                         freed += entry['size']
                     deferred += int(code == 2)
                     skipped += int(code == 3)
+                elif entry['type'] == 'sr':
+                    freed += cache_manager.clean_sr_cache(entry)
+                    text = '超分临时文件已清理；模型和导出文件保留。'
                 else:
                     freed += cache_manager.clean_video(entry['video'], entry['type'])
                     text = '视频缓存已清理；需要时可重新生成。'
