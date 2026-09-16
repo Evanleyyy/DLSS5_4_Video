@@ -26,9 +26,11 @@ def job_directory():
 def run_job(job, progress=None):
     task_control.checkpoint()
     cfg = sr_settings.normalize(job['settings']['super_resolution'])
-    absent = sr_settings.missing(cfg)
+    absent = sr_settings.missing_runtime(cfg)
     if absent:
-        raise FileNotFoundError('本地模型或运行库不完整，请在“超分”页选择完整模型目录：\n' + '\n'.join(absent[:4]))
+        raise FileNotFoundError('超分运行库不完整，请使用完整安装包修复：\n' + '\n'.join(absent[:4]))
+    import model_assets
+    model_assets.prepare([cfg['engine']], cfg, progress)
     # Depth and flow are auxiliary channels, not concurrent diffusion models.
     import gc
     import pipeline

@@ -936,5 +936,25 @@
     "numz/SeedVR2_comfyUI": "09ced71023636e9bc8cdf9cdecfb2625d1e691e8",
     "Manojb/stable-diffusion-2-1-base": "0094d483a120f3f33dafbd187ea4aa60d10de75c"
   },
-  "pisa_weights": "https://drive.google.com/file/d/1PWFM5zUd6lNMOyKX64anvUXhKEOCrf8L/view"
+  "pisa_weights": "https://drive.google.com/file/d/1PWFM5zUd6lNMOyKX64anvUXhKEOCrf8L/view",
+  "guidance_models": [
+    {
+      "path": "guidance/depth_anything_v2_vitl.pth",
+      "kind": "depth",
+      "size": 1341395338,
+      "sha256": "a7ea19fa0ed99244e67b624c72b8580b7e9553043245905be58796a608eb9345",
+      "url": "https://huggingface.co/Depth-Anything/Depth-Anything-V2-Large/resolve/cbbb86a30ce19b5684b7a05155dc7e6cbc7685b9/depth_anything_v2_vitl.pth",
+      "legacy_path": "models/checkpoints/depth_anything_v2_vitl.pth"
+    },
+    {
+      "path": "guidance/raft_large_C_T_SKHT_V2-ff5fadd5.pth",
+      "kind": "flow",
+      "size": 21106607,
+      "sha256": "ff5fadd56d26b40647388883af1547351ea17868b765c05b27231e72dd16a322",
+      "url": "https://download.pytorch.org/models/raft_large_C_T_SKHT_V2-ff5fadd5.pth",
+      "legacy_path": "torch_home/hub/checkpoints/raft_large_C_T_SKHT_V2-ff5fadd5.pth"
+    }
+  ],
+  "official_sd21": "https://huggingface.co/stabilityai/stable-diffusion-2-1-base/resolve/main/",
+  "download_policy": "local_first_official_only"
 }

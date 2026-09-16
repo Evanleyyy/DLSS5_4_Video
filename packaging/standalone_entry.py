@@ -14,9 +14,10 @@ def main():
     playback_verification = '--verify-playback' in sys.argv
     export_cache_verification = '--verify-export-cache' in sys.argv
     preset_verification = '--verify-presets' in sys.argv
-    verification = '--verify-package' in sys.argv or sr_verification or pause_verification or playback_verification or export_cache_verification or preset_verification
+    model_verification = '--verify-model-assets' in sys.argv
+    verification = '--verify-package' in sys.argv or sr_verification or pause_verification or playback_verification or export_cache_verification or preset_verification or model_verification
     if verification:
-        position = sys.argv.index('--verify-presets' if preset_verification else '--verify-export-cache' if export_cache_verification else '--verify-playback' if playback_verification else '--verify-pause' if pause_verification else '--verify-sr' if sr_verification else '--verify-package')
+        position = sys.argv.index('--verify-model-assets' if model_verification else '--verify-presets' if preset_verification else '--verify-export-cache' if export_cache_verification else '--verify-playback' if playback_verification else '--verify-pause' if pause_verification else '--verify-sr' if sr_verification else '--verify-package')
         log_dir = Path(sys.argv[position + 1]).resolve()
         os.environ['DLSS5_DATA_ROOT'] = str(log_dir / 'app-data')
     else:
@@ -34,7 +35,14 @@ def main():
         sys.stdout = sys.stderr = log
         print(f'[{datetime.now().isoformat(timespec="seconds")}] 启动 {sys.executable}')
         try:
-            if preset_verification:
+            preparation = next((arg for arg in sys.argv if arg.startswith('--prepare-models=')), None)
+            if preparation:
+                from model_prepare_ui import run
+                raise SystemExit(run(preparation.split('=', 1)[1].split(',')))
+            elif model_verification:
+                from model_assets_verification import verify
+                verify(log_dir)
+            elif preset_verification:
                 from preset_verification import verify
                 verify(log_dir)
             elif export_cache_verification:

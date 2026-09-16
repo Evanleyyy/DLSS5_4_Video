@@ -2,18 +2,20 @@
 
 面向 Windows 的本地图片与视频处理工具，基于 [purkatyy/DLSS5- 的 V2 发布包](https://github.com/purkatyy/DLSS5-/releases/tag/dlss5v2)进行稳定性修复和界面扩展。
 
-当前版本 **0.3.6**：新增可自定义名称的参数预设，提供新增、保存、应用和删除按钮，支持改名与重启恢复。完整保存双层 DLSS、前后降噪、整体权重及超分设置，关闭的功能也保留参数。已有 0.3.0～0.3.5 安装版可直接使用累计更新包，保留导出缓存修复、生成暂停及空格播放功能。详见[参数预设操作说明](docs/参数预设操作说明.md)。
+当前代码版本 **0.3.7**：安装和首次使用时优先校验并复用本地模型，缺失文件从官方源下载，支持断点续传和校验。后续安装包不再内嵌模型，模型也不再上传本项目 GitHub。详见[模型按需部署说明](docs/模型按需部署说明.md)。保留命名参数预设、导出缓存修复、生成暂停及空格播放功能。
 
-## 下载与离线安装
+## 下载与安装
 
-[下载 0.3.6 发布附件（含本地模型）](https://github.com/Evanleyyy/DLSS5_4_Video/releases/tag/v0.3.6)
+[下载 0.3.7 安装包](https://github.com/Evanleyyy/DLSS5_4_Video/releases/tag/v0.3.7)
 
-- **首次安装**：下载 `DLSS5_Setup_0.3.0.exe` 和全部 11 个同名 `.bin` 分卷，放到同一目录。运行基础安装器后，再运行 `DLSS5_Update_0.3.6.exe` 升级。
-- **已有安装**：0.3.0～0.3.5 用户只需下载并运行 `DLSS5_Update_0.3.6.exe`。
-- 基础包约 **21.99 GB**，包括运行环境、PiSA-SR、SeedVR2、VOSR，以及 DLSS、深度和光流处理所需文件，安装后可离线推理。
-- 下载对应 `_SHA256.txt` 校验文件完整性。GitHub 的 Source code 压缩包仅含源码，离线安装需要上述发布附件。
+- **首次安装**：下载 `DLSS5_Setup_0.3.7.exe` 和全部 4 个同名 `.bin` 分卷，放在同一目录后运行安装器。完整包约 **6.54 GB**，包含程序和运行库，不含模型权重。
+- **已有安装**：0.3.0～0.3.6 用户只需约 **35 MB** 的 `DLSS5_Update_0.3.7.exe`，选择原安装目录。
+- **模型准备**：先校验并复用本地文件，缺失或损坏的文件从官方源下载。模型就绪后可断网推理。
+- 下载对应 `_SHA256.txt` 校验文件完整性。GitHub 的 Source code 压缩包仅含源码。
 
-模型清单及下载校验方法见[离线模型下载说明](docs/离线模型下载说明.md)。
+PiSA 依赖的 SD 2.1 官方源在 2026-09-17 返回 401，已有本地文件可继续复用，缺失时需先解决上游访问或选择已有模型目录。后续不再分发模型，GitHub 上旧版含模型的离线安装包已由新版替代。
+
+模型路径、官方来源和部署步骤见[模型按需部署说明](docs/模型按需部署说明.md)。
 
 ## 功能
 
@@ -27,7 +29,7 @@
 - **前后独立降噪**：DLSS 前与全部 DLSS 层之后分别提供开关、亮度/色彩强度及 0–100% 权重，默认关闭；复用 OpenCV，无需额外模型。详见[降噪操作说明](docs/前后降噪操作说明.md)。
 - **多通道导出**：输出类型可选 PNG 图片或 MP4 视频，勾选原图、DLSS、深度、光流可视化或局部遮罩后分别保存。
 - **输出范围**：视频可提取当前帧或全部帧序列；单张图片可生成指定时长和帧率的静态视频。
-- **安装包部署**：包含 Python、CUDA 运行库、三套超分模型、FFmpeg 和界面，支持选择安装位置、模型组件、快捷方式、升级与卸载。
+- **安装包部署**：包含 Python、CUDA 运行库、FFmpeg 和界面；模型先复用本地文件，缺失时从官方源下载，支持选择安装位置、模型组件、快捷方式、升级与卸载。
 
 ## 仓库内容
 
@@ -35,12 +37,12 @@
 
 ```text
 source/dlss5standaloneV2/   应用及模型结构源码
-packaging/                 独立 EXE 启动器、构建配置及打包后验证
+packaging/                 安装包构建配置、模型清单及打包后验证
 tests/                     回归与界面测试
 docs/                      图片编辑与多通道导出说明
 launch.py                  本地启动入口
 requirements-local.lock.txt
-打包EXE.ps1
+打包安装包.ps1
 ```
 
 ## 从源码启动
@@ -65,11 +67,11 @@ py -3.12 -m venv .venv
 |---|---|
 | 宿主 DLL | `source/dlss5standaloneV2/dlssnr_host.dll` |
 | DLSS 运行库 | `source/dlss5standaloneV2/nvngx_dlssnr.dll` |
-| Depth Anything V2 Large 权重 | `source/dlss5standaloneV2/models/checkpoints/depth_anything_v2_vitl.pth` |
-| RAFT Large 权重 | `source/dlss5standaloneV2/torch_home/hub/checkpoints/raft_large_C_T_SKHT_V2-ff5fadd5.pth` |
 | 支持 H.264/AAC 的 FFmpeg | `runtime/ffmpeg.exe` |
 
 本仓库保留模型结构代码，不包含模型权重。原发布包的二进制校验信息及审查范围见[代码审查与部署说明](代码审查与部署说明.md)。
+
+模型可在首次使用时自动准备，也可执行 `.\.venv\Scripts\python.exe tools/download_sr_assets.py --engine guidance` 提前准备深度与光流。三套超分引擎另外需要 `runtime/python`、独立推理依赖与引擎源码，构建环境见[打包说明](packaging/打包说明.md)。
 
 ### 3. 启动
 
@@ -89,7 +91,8 @@ py -3.12 -m venv .venv
 - [本地超分、模型选择与安装](docs/本地超分操作说明.md)
 - [暂停、继续生成与更新安装](docs/暂停生成操作说明.md)
 - [空格播放／暂停快捷键](docs/空格播放操作说明.md)
-- [安装包及旧版 EXE 构建与验证](packaging/打包说明.md)
+- [模型按需下载、复用与校验](docs/模型按需部署说明.md)
+- [安装包构建与验证](packaging/打包说明.md)
 
 局部手绘遮罩作用于当前单张图片；静态视频重复显示图片，不生成新的运动。单图没有帧间光流，对应导出选项会置灰。
 
@@ -112,13 +115,13 @@ py -3.12 -m venv .venv
 
 后两项 GPU 界面测试使用第一项测试生成的本地素材。回归测试还覆盖手动缓存清理、原始素材及导出保护、处理互斥。`tests/gui_cache_smoke.py` 验证缓存界面，`tests/verify_launcher.py` 验证真实启动器的多开和关闭清理流程。测试生成文件保留在本地并由 `.gitignore` 排除。
 
-双层 GPU 数值验证使用 `tests/layers_gpu_smoke.py`；双层界面、遮罩导出、批量图片及视频验证使用 `tests/gui_layers_smoke.py`，后者使用独立 EXE 自检生成的短视频。前后降噪验证使用 `tests/gui_denoise_smoke.py`。可选超分引擎、透明度及 GUI 导出使用 `tests/gui_sr_smoke.py`；1080p、四倍批量图片、连续帧视频与音频使用 `tests/sr_delivery_checks.py`；0.3.0 完整安装升级使用 `tests/verify_installer.py`。暂停与继续使用 `tests/gui_pause_smoke.py`，安装版支持 `--verify-pause` 自检。当前回归测试共 62 项，另有预设与播放等真实界面测试。
+双层 GPU 数值验证使用 `tests/layers_gpu_smoke.py`；双层界面、遮罩导出、批量图片及视频验证使用 `tests/gui_layers_smoke.py`，后者使用独立 EXE 自检生成的短视频。前后降噪验证使用 `tests/gui_denoise_smoke.py`。可选超分引擎、透明度及 GUI 导出使用 `tests/gui_sr_smoke.py`；1080p、四倍批量图片、连续帧视频与音频使用 `tests/sr_delivery_checks.py`。暂停与继续使用 `tests/gui_pause_smoke.py`，安装版支持 `--verify-pause` 自检。当前回归测试共 79 项，另有预设、播放和模型下载等真实界面测试。
 
 ## 打包
 
-按照[打包说明](packaging/打包说明.md)准备依赖和 Inno Setup。`打包安装包.ps1 -UpdateOnly` 生成 `output/DLSS5_Update_0.3.6.exe`，用于已有 0.3.0～0.3.5 安装版；不带参数可以构建 0.3.6 完整包。本次提供 0.3.6 累计更新包，新电脑先使用现有 0.3.0 完整包及全部同名 `.bin` 数据分卷。预设测试为 `tests/test_parameter_presets.py`、`tests/gui_presets_smoke.py`，安装版使用 `--verify-presets`。最小焦点回归测试为 `tests/shortcut_focus_smoke.py`，Windows 原生按键回归为 `tests/native_playback_smoke.py`；完整播放快捷键测试为 `tests/gui_playback_smoke.py`，安装版使用 `--verify-playback`。
+按照[打包说明](packaging/打包说明.md)准备依赖和 Inno Setup。`打包安装包.ps1 -UpdateOnly` 生成 `output/DLSS5_Update_0.3.7.exe`，用于已有 0.3.0～0.3.6 安装版；不带参数生成 0.3.7 完整安装包及运行库分卷。两种包均不内嵌模型。模型下载验证使用安装版 `--verify-model-assets`，参数预设使用 `--verify-presets`，播放快捷键使用 `--verify-playback`。
 
-旧版 `打包EXE.ps1` 与 `output/DLSS5_Standalone.exe` 保留用于回退，不包含本版超分功能。
+旧单文件 EXE 的启动器与缓存测试保留用于兼容性验证，新版本统一通过安装包交付。
 
 ## 缓存管理
 

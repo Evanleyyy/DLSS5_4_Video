@@ -69,6 +69,14 @@ def missing(settings):
     root = model_root(cfg) / cfg['engine']
     absent = [str(root / name) for name in FILES[cfg['engine']]
               if not (root / name).is_file() or (root / name).stat().st_size == 0]
+    return absent + missing_runtime(cfg)
+
+
+def missing_runtime(settings):
+    cfg = normalize(settings)
+    if cfg['engine'] == 'dlss':
+        return []
+    absent = []
     for path in (runtime_root() / 'python/python.exe', runtime_root() / 'sr-packages/torch/__init__.py',
                  runtime_root() / 'sr-engines' / cfg['engine']):
         if not path.exists():

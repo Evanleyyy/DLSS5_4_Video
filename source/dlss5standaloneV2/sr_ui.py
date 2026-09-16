@@ -46,8 +46,10 @@ class SuperResolutionMixin:
         grid = self._section(self.sr_paths, '本地模型目录')
         self._button(grid, '选择模型根目录', self._choose_sr_models)
         self._button(grid, '检查模型文件', self._check_sr_models)
+        self._button(grid, '检查并补全所选模型', self._prepare_sr_models)
         self._button(grid, '恢复安装目录模型', self._reset_sr_models)
         self.sr_path_label = self._note(self.sr_paths, '')
+        self._note(self.sr_paths, '优先复用本地模型；缺失或损坏的文件从官方源下载，支持断点续传。运行引擎前也会自动检查；模型齐全后可离线处理。')
         self._note(parent, '处理顺序：前置降噪 → 所选引擎 → 后置降噪 → 整体权重 → 图片局部遮罩。降噪和整体权重位于“参数”页；双层与引导参数仅用于 DLSS。全部推理在本机完成。')
         self._show_sr_panels()
 
@@ -90,3 +92,11 @@ class SuperResolutionMixin:
         absent = sr_settings.missing(cfg)
         messagebox.showinfo('本地模型检查', ('缺少文件：\n' + '\n'.join(absent)) if absent else
             '所选引擎的必要文件已就绪。运行时会在本机加载并校验模型结构。')
+
+    def _prepare_sr_models(self):
+        import model_assets
+        cfg = self._read_sr_settings()
+        def prepare():
+            result = model_assets.prepare([cfg['engine']], cfg, self.set_progress, force_verify=True)
+            self.logln(f'模型准备完成：复用 {result["reused"]} 个文件，下载 {result["downloaded"]} 个文件。')
+        self._in_thread(prepare)

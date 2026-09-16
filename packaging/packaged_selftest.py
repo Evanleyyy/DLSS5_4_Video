@@ -41,8 +41,10 @@ def verify(directory, bundle):
         for module in (cv2, np, torch, torchvision, pipeline, dlss_engine, gui):
             assert Path(module.__file__).resolve().is_relative_to(bundle.resolve()), module.__file__
         assert Path(pipeline.BASE).resolve() == bundle.resolve()
-        for asset in (pipeline.DAV2_CKPT, pipeline.RAFT_PTH, dlss_engine.HOST_DLL,
-                      dlss_engine.DLSSNR_DLL, pipeline._bundle_ffmpeg()):
+        from model_assets import guidance_path
+        for kind in ('depth', 'flow'):
+            assert Path(guidance_path(kind)).is_file()
+        for asset in (dlss_engine.HOST_DLL, dlss_engine.DLSSNR_DLL, pipeline._bundle_ffmpeg()):
             assert Path(asset).is_file(), asset
             assert Path(asset).resolve().is_relative_to(bundle.resolve()), asset
 

@@ -5,14 +5,18 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-manifest = {'application_version': '0.3.0', 'engines': {}, 'models': []}
+manifest_path = ROOT / 'packaging/sr-assets-manifest.json'
+manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+manifest.update(engines={}, models=[])
 for key in ('pisa', 'seedvr2', 'vosr'):
     repo = ROOT / 'runtime/sr-engines' / key
     manifest['engines'][key] = {
         'remote': subprocess.check_output(['git', '-C', str(repo), 'remote', 'get-url', 'origin'], text=True).strip(),
         'commit': subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'HEAD'], text=True).strip()}
 for path in sorted((ROOT / 'runtime/sr-models').rglob('*')):
-    if not path.is_file() or path.suffix in ('.complete', '.pyc') or '__pycache__' in path.parts or 'validation' in path.name:
+    if (not path.is_file() or path.suffix in ('.complete', '.pyc', '.part', '.lock') or
+            '__pycache__' in path.parts or 'validation' in path.name or
+            path.relative_to(ROOT / 'runtime/sr-models').parts[0] not in ('pisa', 'seedvr2', 'vosr')):
         continue
     digest = hashlib.sha256()
     with path.open('rb') as handle:

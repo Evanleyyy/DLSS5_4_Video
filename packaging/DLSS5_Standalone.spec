@@ -15,11 +15,7 @@ a = Analysis(
         (str(app / 'nvngx_dlssnr.dll'), '.'),
         (str(root / 'runtime' / 'ffmpeg.exe'), '.'),
     ],
-    datas=[
-        (str(app / 'models' / 'checkpoints' / 'depth_anything_v2_vitl.pth'), 'models/checkpoints'),
-        (str(app / 'torch_home' / 'hub' / 'checkpoints' / 'raft_large_C_T_SKHT_V2-ff5fadd5.pth'),
-         'torch_home/hub/checkpoints'),
-    ],
+    datas=[(str(root / 'packaging/sr-assets-manifest.json'), 'model-manifests')],
     hiddenimports=['PIL.Image', 'PIL.ImageTk', 'torchvision.models.optical_flow',
                    *collect_submodules('depth_anything_v2')],
     excludes=['IPython', 'jupyter', 'notebook', 'matplotlib', 'pandas', 'scipy',

@@ -223,8 +223,10 @@ def get_depth_model():
         from depth_anything_v2.dpt import DepthAnythingV2
         import torch
         cfg = {"encoder": "vitl", "features": 256, "out_channels": [256, 512, 1024, 1024]}
+        from model_assets import guidance_path
+        checkpoint = guidance_path('depth')
         m = DepthAnythingV2(**cfg)
-        m.load_state_dict(torch.load(DAV2_CKPT, map_location="cpu", weights_only=True))
+        m.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
         m = m.to(DEVICE).eval()
         _depth_model = m
     return _depth_model
@@ -298,11 +300,13 @@ def get_flow_model():
         _require_torch("光流生成")
         import torch
         from torchvision.models.optical_flow import Raft_Large_Weights, raft_large
+        from model_assets import guidance_path
+        checkpoint = guidance_path('flow')
         w = Raft_Large_Weights.DEFAULT
         # Offline: construct the (identical) architecture then load the bundled
         # state dict directly, so torchvision never tries to download from the net.
         m = raft_large(weights=None).to(DEVICE).eval()
-        m.load_state_dict(torch.load(RAFT_PTH, map_location="cpu", weights_only=True))
+        m.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
         _flow_model = (m, w.transforms())
     return _flow_model
 
@@ -403,6 +407,8 @@ def generate_dlss(video, settings=None, frame_limit=None, progress=None):
         record['options']['model_assets'] = sr_settings.fingerprint(settings['super_resolution'])
         _begin_cache(directory, record)
         result = sr_backend.process_video(video, directory, settings, n, progress)
+        # First-use preparation can change the model fingerprint during this job.
+        record['options']['model_assets'] = sr_settings.fingerprint(settings['super_resolution'])
         _finish_cache(directory, record)
         return result['count']
     _begin_cache(directory, record)
