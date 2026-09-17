@@ -5,6 +5,7 @@ from tkinter import ttk
 import dlss_layers
 import dlss_runtime
 import runtime_session
+import color_preservation
 
 
 class LayerSettingsMixin:
@@ -15,6 +16,8 @@ class LayerSettingsMixin:
         self._note(parent, '当前显卡：' + gpu['name'] + '。30 系兼容库为实验版本，请先运行模型自检。')
         self.v_second_enabled = tk.BooleanVar(value=False)
         self.v_overall_weight = tk.DoubleVar(value=100)
+        self.v_color_preservation = tk.DoubleVar(value=0)
+        self.v_color_mask_scope = tk.StringVar(value=color_preservation.MASK_SCOPES['result'])
         self.v_edit_layer = tk.StringVar(value='第一层 DLSS')
         self.layer_vars = []
         self.layer_panels = []
@@ -27,7 +30,11 @@ class LayerSettingsMixin:
         self._scale(grid, '整体权重（%）', self.v_overall_weight, 0, 100, 1, self.on_settings_change)
         self.layer_selector = self._choice(grid, '编辑独立参数', self.v_edit_layer,
             ['第一层 DLSS', '第二层 DLSS'], self._show_selected_layer)
-        self._note(parent, '处理顺序：原图 → 前置降噪 → 第一层 → 第二层（可选）→ 后置降噪 → 整体权重 → 局部遮罩。整体权重 0% 保留原图。')
+        self._note(parent, '处理顺序：原图 → 前置降噪 → 第一层 → 第二层（可选）→ 后置降噪 → 整体权重 → 原色彩保留 → 局部遮罩。整体权重 0% 保留原图。')
+        grid = self._section(parent, 'DLSS 原色彩保留')
+        self.color_preservation_scale = self._scale(grid, '原色彩保留（%）', self.v_color_preservation,
+            0, 100, 1, self._color_preservation_changed)
+        self._note(parent, '0% 使用模型颜色；100% 尽量还原原素材的局部色彩与大范围明暗，保留模型细纹理。仅用于 DLSS，两层处理后统一应用。单图可在“遮罩”页选择作用范围。')
         self._build_denoise_settings(parent, 'input_denoise', 'DLSS 前降噪',
             '先清理原素材的颗粒和色噪，再进入第一层 DLSS。')
         self.layer_container = ttk.Frame(parent)
@@ -90,7 +97,7 @@ class LayerSettingsMixin:
         self._note(parent, note + ' 强度越高越容易损失细节；权重 0% 跳过、100% 完整应用。视频逐帧降噪会增加耗时。')
 
     def _update_denoise_controls(self, key):
-        state = 'normal' if self.denoise_vars[key]['enabled'].get() and not self._busy else 'disabled'
+        state = 'normal' if self.denoise_vars[key]['enabled'].get() and (not self._busy or self._preview_task) else 'disabled'
         for scale in self.denoise_scales[key]:
             scale.configure(state=state)
 
@@ -139,6 +146,10 @@ class LayerSettingsMixin:
         result = self._read_single_layer(self.layer_vars[0])
         result['second_layer'] = self._read_single_layer(self.layer_vars[1]) if self.v_second_enabled.get() else None
         result['overall_weight'] = float(self.v_overall_weight.get()) / 100
+        result['color_preservation'] = {
+            'strength': float(self.v_color_preservation.get()) / 100,
+            'mask_scope': next(key for key, label in color_preservation.MASK_SCOPES.items()
+                               if label == self.v_color_mask_scope.get())}
         for key, variables in self.denoise_vars.items():
             result[key] = {'enabled': bool(variables['enabled'].get()),
                            'luma': float(variables['luma'].get()),
@@ -146,21 +157,13 @@ class LayerSettingsMixin:
                            'weight': float(variables['weight'].get()) / 100}
         return dlss_layers.normalize_settings(result)
 
+    def _color_preservation_changed(self, event=None):
+        self.on_settings_change()
+
+    def _color_mask_scope_changed(self, event=None):
+        self.on_settings_change()
+
     def _runtime_changed(self, event=None):
-        if self._busy:
-            return
-        self.pause()
-        self._close_live()
-        try:
-            versions = [self._read_single_layer(group)['runtime_version'] for group in self.layer_vars]
-            dlss_runtime.save_preferences(*versions)
-            info = dlss_runtime.resolve(versions[int(self.v_edit_layer.get() == '第二层 DLSS')])
-            self.set_status('已选择模型：' + info['id'] + '；可运行自检或生成')
-        except (OSError, ValueError) as error:
-            self.set_status(str(error))
-            self.logln(str(error))
-        self.image_dlss = None
-        self._split_frame = -1
         self.on_settings_change()
 
     def _test_runtime(self, index):

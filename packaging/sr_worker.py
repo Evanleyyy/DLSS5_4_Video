@@ -1,4 +1,4 @@
-"""Offline model worker. Each job owns its CUDA context and releases it on exit."""
+"""Offline worker: retain model weights across confirmed jobs in one session."""
 import json
 import os
 from pathlib import Path
@@ -74,6 +74,24 @@ class Pisa:
             latent_tiled_size=cfg['tile'] // 8, latent_tiled_overlap=16)
         self.model = PiSASR_eval(args)
         self.model.set_eval()
+        # The upstream restore path adds two fp16 tensors, which differs from
+        # its initial fp32 adapter merge. Keep the original merged buffers so
+        # every tile and every later job sees exactly the same semantic weights.
+        semantic_weights = {name: value.detach() for name, value in self.model.unet.named_parameters()}
+        def restore_semantic_weights():
+            for name, parameter in self.model.unet.named_parameters():
+                parameter.data = semantic_weights[name]
+        self.model._apply_lora_delta = restore_semantic_weights
+        # The snapshots replace the deltas; no extra full UNet copy is required.
+        self.model.lora_deltas_sem.clear()
+        self.tile = cfg['tile']
+
+    def update(self, cfg):
+        self.model.lambda_pix.fill_(cfg['pisa_pixel'])
+        self.model.lambda_sem.fill_(cfg['pisa_semantic'])
+        if self.tile != cfg['tile']:
+            self.model._init_tiled_vae(encoder_tile_size=cfg['tile'], decoder_tile_size=max(64, cfg['tile'] // 4))
+            self.tile = cfg['tile']
 
     def image(self, bgr, cfg):
         torch.manual_seed(cfg['seed'])
@@ -127,6 +145,9 @@ class Vosr:
         self.model = self.model.to('cuda', dtype=torch.bfloat16).eval()
         self.model.forward = self.model.forward_flexible
 
+    def update(self, cfg):
+        self.args.tile_size = self.args.vae_tile_size = cfg['tile']
+
     def image(self, bgr, cfg):
         torch.manual_seed(cfg['seed'])
         w, h = bgr.shape[1] * cfg['scale'], bgr.shape[0] * cfg['scale']
@@ -157,6 +178,21 @@ class Seed:
         finally:
             sys.argv = argv
         self.impl, self.cache = impl, {}
+
+    def update(self, cfg):
+        self.args.blocks_to_swap = cfg['blocks']
+        self.args.vae_encode_tile_size = self.args.vae_decode_tile_size = cfg['tile']
+        self.args.batch_size = cfg['batch']
+        self.args.seed = cfg['seed']
+        self.args.color_correction = 'none' if cfg['color'] == 'nofix' else cfg['color']
+
+    def clear_transients(self):
+        context = self.cache.get('ctx', {})
+        keep = {'dit_device', 'vae_device', 'dit_offload_device', 'vae_offload_device',
+                'tensor_offload_device', 'compute_dtype'}
+        for key in list(context):
+            if key not in keep:
+                del context[key]
 
     def dimensions(self, bgr, cfg):
         self.args.resolution = min(bgr.shape[:2]) * cfg['scale']
@@ -196,7 +232,7 @@ def finish(original, result, settings, cfg):
     return output
 
 
-def execute(job, directory):
+def execute(job, directory, cache=None):
     task_control.checkpoint()
     sys.path.insert(0, job['app_source'])
     # Installed builds copy lightweight processing helpers next to this script.
@@ -211,13 +247,22 @@ def execute(job, directory):
         temporary = directory / 'progress.tmp'
         temporary.write_text(json.dumps(dict(done=done, total=total, stage=stage), ensure_ascii=False), encoding='utf-8')
         os.replace(temporary, directory / 'progress.json')
-    progress(0, '正在加载本地超分模型')
+    progress(0, '检查本地模型会话')
     if not torch.cuda.is_available():
         raise RuntimeError('扩散超分需要可用的 NVIDIA CUDA 显卡')
     torch.set_num_threads(8)
-    model = None
+    cache = {} if cache is None else cache
+    model, reused = None, False
     if settings.get('overall_weight', 1.0) > 0:
-        model = {'pisa': Pisa, 'vosr': Vosr, 'seedvr2': Seed}[cfg['engine']](Path(job['model_root']) / cfg['engine'], cfg)
+        key = (cfg['engine'], str(Path(job['model_root']).resolve()))
+        if cache.get('key') == key:
+            model, reused = cache['model'], True
+        else:
+            progress(0, '正在加载本地超分模型')
+            model = {'pisa': Pisa, 'vosr': Vosr, 'seedvr2': Seed}[cfg['engine']](Path(job['model_root']) / cfg['engine'], cfg)
+            cache.update(key=key, model=model, loads=cache.get('loads', 0) + 1)
+        model.update(cfg)
+        progress(0, '复用已加载模型，应用本次参数' if reused else '本地模型已加载')
     task_control.checkpoint()
     output_dir = Path(job['output'])
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -265,12 +310,14 @@ def execute(job, directory):
             cap.release()
             original_cap.release()
         outputs = [str(output_dir)]
+    if model is not None and hasattr(model, 'clear_transients'):
+        model.clear_transients()
     return {'outputs': outputs, 'count': total, 'seconds': round(time.monotonic() - start, 3),
-            'engine': cfg['engine'], 'offline': True, 'peak_vram': torch.cuda.max_memory_allocated()}
+            'engine': cfg['engine'], 'offline': True, 'peak_vram': torch.cuda.max_memory_allocated(),
+            'worker_pid': os.getpid(), 'model_loads': cache.get('loads', 0), 'model_reused': reused}
 
 
-if __name__ == '__main__':
-    request = Path(sys.argv[1]).resolve()
+def run_request(request, cache=None):
     try:
         job = json.loads(request.read_text(encoding='utf-8'))
         control = task_control.FilePauseControl(request.parent,
@@ -285,9 +332,34 @@ if __name__ == '__main__':
                 control.checkpoint()
                 next_check[0] = time.monotonic() + .05
         with task_control.bind(control), torch.nn.modules.module.register_module_forward_pre_hook(pause_before_module):
-            result = execute(job, request.parent)
-        (request.parent / 'result.json').write_text(json.dumps(result), encoding='utf-8')
+            result = execute(job, request.parent, cache)
+        temporary = request.parent / 'result.tmp'
+        temporary.write_text(json.dumps(result), encoding='utf-8')
+        os.replace(temporary, request.parent / 'result.json')
+        return True
     except Exception as error:
         traceback.print_exc()
-        (request.parent / 'error.txt').write_text(str(error), encoding='utf-8')
-        raise SystemExit(1)
+        temporary = request.parent / 'error.tmp'
+        temporary.write_text(str(error), encoding='utf-8')
+        os.replace(temporary, request.parent / 'error.txt')
+        return False
+
+
+def serve(directory, parent_pid):
+    cache = {}
+    while task_control._parent_alive(parent_pid) and not (directory / 'stop').exists():
+        inbox = directory / 'next.json'
+        if not inbox.exists():
+            time.sleep(.05)
+            continue
+        request = Path(json.loads(inbox.read_text(encoding='utf-8'))['request']).resolve()
+        inbox.unlink()
+        if not run_request(request, cache):
+            return 1  # Never reuse a possibly damaged CUDA context after an error.
+    return 0
+
+
+if __name__ == '__main__':
+    if sys.argv[1] == '--serve':
+        raise SystemExit(serve(Path(sys.argv[2]).resolve(), int(sys.argv[3])))
+    raise SystemExit(0 if run_request(Path(sys.argv[1]).resolve()) else 1)

@@ -113,6 +113,7 @@ class RuntimeTests(unittest.TestCase):
         settings = loaded['presets'][0]['parameters']['settings']
         self.assertEqual(loaded['active_id'], 'legacy')
         self.assertEqual(settings['runtime_version'], 'auto')
+        self.assertEqual(settings['color_preservation'], {'strength': 0.0, 'mask_scope': 'result'})
         self.assertEqual(settings['second_layer']['runtime_version'], 'auto')
         self.assertEqual((settings['preset'], settings['intensity'], settings['overall_weight']),
                          (2, .45, .7))

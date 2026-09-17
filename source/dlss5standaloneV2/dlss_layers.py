@@ -8,6 +8,7 @@ import sr_settings
 import task_control
 import dlss_runtime
 import runtime_session
+import color_preservation
 
 DEFAULTS = {'preset': 1, 'style': 0, 'intensity': 1.0, 'local_tone': 1.0,
             'local_struct': 1.0, 'skin_struct': 1.0, 'use_auto_mask': 1,
@@ -39,6 +40,7 @@ def normalize_settings(settings=None):
     if not np.isfinite(weight) or not 0 <= weight <= 1:
         raise ValueError('整体权重必须在 0% 到 100% 之间')
     result['overall_weight'] = weight
+    result['color_preservation'] = color_preservation.normalize(source.get('color_preservation'))
     for key in ('input_denoise', 'output_denoise'):
         result[key] = image_denoise.normalize_settings(source.get(key))
     result['super_resolution'] = sr_settings.normalize(source.get('super_resolution'))
@@ -64,6 +66,14 @@ def guidance_needs(settings):
 
 def settings_key(settings):
     normalized = normalize_settings(settings)
+    # Disabled controls remain in presets, but cannot invalidate rendered pixels.
+    for key in ('input_denoise', 'output_denoise'):
+        denoise = normalized[key]
+        if (not denoise['enabled'] or denoise['weight'] == 0 or
+                denoise['luma'] == denoise['chroma'] == 0):
+            normalized[key] = image_denoise.normalize_settings()
+    if normalized['super_resolution']['engine'] == 'dlss':
+        normalized['super_resolution'] = {'engine': 'dlss'}
     return json.dumps({'settings': normalized, 'runtimes': dlss_runtime.fingerprint(normalized)}, sort_keys=True)
 
 
@@ -110,6 +120,9 @@ class LayeredLive:
         if self.second is not None and (normalized['second_layer'] is None or normalized['overall_weight'] == 0):
             self.second.close()
             self.second = None
+        if self.first is not None and normalized['overall_weight'] == 0:
+            self.first.close()
+            self.first = None
 
     def process(self, rgba, motion, depth, reset=False):
         task_control.checkpoint()
@@ -139,7 +152,8 @@ class LayeredLive:
             output = image_denoise.apply_rgba(output, self.settings['output_denoise'])
             task_control.checkpoint()
             self._reset = False
-            return blend_result(rgba, output, self.settings['overall_weight'])
+            output = blend_result(rgba, output, self.settings['overall_weight'])
+            return color_preservation.apply(rgba, output, self.settings['color_preservation']['strength'])
         except BaseException:
             self.close()
             raise

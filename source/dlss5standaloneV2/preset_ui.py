@@ -5,6 +5,7 @@ from tkinter import ttk, messagebox
 from gui_layout import FlowGrid
 import parameter_presets
 import sr_settings
+import color_preservation
 
 
 class PresetMixin:
@@ -33,7 +34,7 @@ class PresetMixin:
         self.preset_apply_btn = self._button(actions, '应用预设', self._apply_selected_preset)
         self.preset_delete_btn = self._button(actions, '删除预设', self._delete_parameter_preset)
         self.preset_note = self._note(grid.master, '填写名称后新增；修改参数或名称后，点击保存预设。')
-        self._note(parent, '新增：输入新名称；修改参数或改名：保存预设。\n包含双层 DLSS、降噪、整体权重与超分设置。\n重启恢复最后保存或应用的预设。')
+        self._note(parent, '新增：输入新名称；修改参数或改名：保存预设。\n包含双层 DLSS、降噪、原色彩保留、整体权重与超分设置。\n重启恢复最后保存或应用的预设。')
         self.v_preset_name.trace_add('write', lambda *_: self._update_preset_note())
 
     def _restore_parameter_presets(self):
@@ -47,7 +48,8 @@ class PresetMixin:
             self.preset_note.configure(text=str(error))
             self.logln(str(error))
         self._presets_ready = True
-        variables = [self.v_second_enabled, self.v_overall_weight]
+        variables = [self.v_second_enabled, self.v_overall_weight,
+                     self.v_color_preservation, self.v_color_mask_scope]
         for group in [*self.layer_vars, *self.denoise_vars.values(), self.sr_vars]:
             variables.extend(group.values())
         for variable in variables:
@@ -115,7 +117,7 @@ class PresetMixin:
             self._preset_error(error)
 
     def _apply_selected_preset(self, event=None):
-        if self._busy or self._closing:
+        if (self._busy and not self._preview_task) or self._closing:
             return
         previous = self._current_preset()
         try:
@@ -143,6 +145,8 @@ class PresetMixin:
             dlss_runtime.save_preferences(settings['runtime_version'], parameters['second_layer_parameters']['runtime_version'])
             self.v_second_enabled.set(settings['second_layer'] is not None)
             self.v_overall_weight.set(settings['overall_weight'] * 100)
+            self.v_color_preservation.set(settings['color_preservation']['strength'] * 100)
+            self.v_color_mask_scope.set(color_preservation.MASK_SCOPES[settings['color_preservation']['mask_scope']])
             for key, variables in self.denoise_vars.items():
                 for name, variable in variables.items():
                     variable.set(settings[key][name] * (100 if name == 'weight' else 1))
@@ -151,8 +155,7 @@ class PresetMixin:
                 variable.set(settings['super_resolution'][key])
             self.v_sr_engine.set(sr_settings.ENGINES[settings['super_resolution']['engine']])
             self._show_sr_panels()
-            self._close_live()
-            self.image_dlss = None
+            self._close_live(release_models=False)
             self._split_frame = -1
         finally:
             self._applying_preset = False

@@ -17,6 +17,7 @@ def verify(directory):
     result = {'status': 'running'}
     root = tk.Tk()
     app = gui.App(root)
+    app._auto_enabled = False  # This specialized check schedules explicit jobs.
     gate = threading.Event()
 
     def pump(seconds=.08):

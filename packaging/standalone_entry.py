@@ -16,9 +16,12 @@ def main():
     export_cache_verification = '--verify-export-cache' in sys.argv
     preset_verification = '--verify-presets' in sys.argv
     model_verification = '--verify-model-assets' in sys.argv
-    verification = runtime_verification or '--verify-package' in sys.argv or sr_verification or pause_verification or playback_verification or export_cache_verification or preset_verification or model_verification
+    installer_verification = '--verify-installer-models' in sys.argv
+    residency_verification = '--verify-residency' in sys.argv
+    realtime_verification = '--verify-realtime' in sys.argv
+    verification = realtime_verification or residency_verification or installer_verification or runtime_verification or '--verify-package' in sys.argv or sr_verification or pause_verification or playback_verification or export_cache_verification or preset_verification or model_verification
     if verification:
-        position = sys.argv.index('--verify-runtimes' if runtime_verification else '--verify-model-assets' if model_verification else '--verify-presets' if preset_verification else '--verify-export-cache' if export_cache_verification else '--verify-playback' if playback_verification else '--verify-pause' if pause_verification else '--verify-sr' if sr_verification else '--verify-package')
+        position = sys.argv.index('--verify-realtime' if realtime_verification else '--verify-residency' if residency_verification else '--verify-installer-models' if installer_verification else '--verify-runtimes' if runtime_verification else '--verify-model-assets' if model_verification else '--verify-presets' if preset_verification else '--verify-export-cache' if export_cache_verification else '--verify-playback' if playback_verification else '--verify-pause' if pause_verification else '--verify-sr' if sr_verification else '--verify-package')
         log_dir = Path(sys.argv[position + 1]).resolve()
         os.environ['DLSS5_DATA_ROOT'] = str(log_dir / 'app-data')
     else:
@@ -36,10 +39,24 @@ def main():
         sys.stdout = sys.stderr = log
         print(f'[{datetime.now().isoformat(timespec="seconds")}] 启动 {sys.executable}')
         try:
+            install_source = next((arg.split('=', 1)[1] for arg in sys.argv if arg.startswith('--install-models-from=')), None)
             preparation = next((arg for arg in sys.argv if arg.startswith('--prepare-models=')), None)
-            if preparation:
+            if install_source is not None:
+                from installer_model_ui import run
+                requested = next((arg.split('=', 1)[1] for arg in sys.argv if arg.startswith('--models=')), '')
+                raise SystemExit(run(install_source, [item for item in requested.split(',') if item], '--models-silent' in sys.argv))
+            elif preparation:
                 from model_prepare_ui import run
                 raise SystemExit(run(preparation.split('=', 1)[1].split(',')))
+            elif realtime_verification:
+                from realtime_verification import verify
+                verify(log_dir)
+            elif residency_verification:
+                from residency_verification import verify
+                verify(log_dir)
+            elif installer_verification:
+                from installer_models_verification import verify
+                verify(log_dir)
             elif runtime_verification:
                 from runtime_verification import verify
                 verify(log_dir)

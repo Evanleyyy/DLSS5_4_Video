@@ -35,10 +35,13 @@ def wait_worker():
 
 with patch.object(gui.filedialog, 'askopenfilename', return_value=str(source)):
     app.import_image()
+assert app.image_dlss is None
+app.confirm_processing()
 wait_worker()
 assert app.image_dlss is not None and app.image_dlss.shape == image.shape
 app.v_intensity.set(0.5)
 app._refresh_dlss()
+app.confirm_processing()
 wait_worker()
 assert app.image_dlss.shape == image.shape
 with patch.object(gui.filedialog, 'askopenfilename', return_value=str(folder / '测试片.mp4')):

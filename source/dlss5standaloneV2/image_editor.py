@@ -3,6 +3,35 @@ import zlib
 
 import cv2
 import numpy as np
+import color_preservation
+
+
+def feather_selection(data, feather):
+    radius = max(0, int(round(float(feather))))
+    return (cv2.GaussianBlur(data, (2 * radius + 1, 2 * radius + 1),
+                             max(radius / 3, .1), borderType=cv2.BORDER_REPLICATE)
+            if radius else data.copy())
+
+
+def compose_result(original, rendered, settings, mask=None, protect=False, source_alpha=None):
+    """Compose one confirmed snapshot. No UI variables or mutable selection state."""
+    size = (rendered.shape[1], rendered.shape[0])
+    reference = cv2.resize(original, size, interpolation=cv2.INTER_CUBIC)
+    alpha = cv2.resize(source_alpha, size, interpolation=cv2.INTER_LINEAR) if source_alpha is not None else None
+    dlss = settings.get('super_resolution', {}).get('engine', 'dlss') == 'dlss'
+    cfg = color_preservation.normalize(settings.get('color_preservation'))
+    output = rendered
+    if dlss and cfg['strength']:
+        if alpha is not None:
+            output = color_preservation.apply(np.dstack([reference, alpha]),
+                                              np.dstack([rendered, alpha]), cfg['strength'])[..., :3].copy()
+        else:
+            output = color_preservation.apply(reference, rendered, cfg['strength'])
+    if mask is not None:
+        mask = cv2.resize(mask, size, interpolation=cv2.INTER_LINEAR)
+        outside = rendered if dlss and cfg['mask_scope'] == 'color' else reference
+        output = blend_selection(outside, output, mask, protect)
+    return np.dstack([output, alpha]) if alpha is not None else output
 
 
 class Viewport:
@@ -94,12 +123,7 @@ class SelectionMask:
         radius = max(0, int(round(float(feather))))
         key = self.revision, radius
         if key != self._cached_key:
-            if radius:
-                # Replicate at the photograph boundary so a full selection stays full.
-                self._cached_alpha = cv2.GaussianBlur(self.data, (2 * radius + 1, 2 * radius + 1),
-                                                     max(radius / 3, 0.1), borderType=cv2.BORDER_REPLICATE)
-            else:
-                self._cached_alpha = self.data.copy()
+            self._cached_alpha = feather_selection(self.data, radius)
             self._cached_key = key
         return self._cached_alpha
 

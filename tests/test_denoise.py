@@ -126,7 +126,7 @@ class DenoiseTests(unittest.TestCase):
                     with self.subTest(key=key, field=field, value=value), self.assertRaises(ValueError):
                         layers.normalize_settings({key: {field: value}})
 
-    def test_cached_results_are_invalidated_by_each_stage_parameter(self):
+    def test_only_effective_denoise_parameters_invalidate_cached_results(self):
         directory = Path(tempfile.mkdtemp(prefix='regression-denoise-', dir=ROOT / 'tests'))
         video = directory / '原视频.mp4'
         video.write_bytes(b'video')
@@ -140,7 +140,16 @@ class DenoiseTests(unittest.TestCase):
             for field, value in [('enabled', True), ('luma', 8), ('chroma', 6), ('weight', .5)]:
                 changed = layers.normalize_settings(settings)
                 changed[key][field] = value
+                self.assertEqual(pipeline.dlss_cache_matches(str(video), changed), field != 'enabled')
+            enabled = layers.normalize_settings({key: {'enabled': True}})
+            pipeline._finish_cache(str(folder), pipeline._cache_record(str(video),
+                {'kind': 'dlss', 'settings': enabled, 'frames': 2}))
+            for field, value in [('enabled', False), ('luma', 8), ('chroma', 6), ('weight', .5)]:
+                changed = layers.normalize_settings(enabled)
+                changed[key][field] = value
                 self.assertFalse(pipeline.dlss_cache_matches(str(video), changed))
+            pipeline._finish_cache(str(folder), pipeline._cache_record(str(video),
+                {'kind': 'dlss', 'settings': settings, 'frames': 2}))
 
 
 if __name__ == '__main__':

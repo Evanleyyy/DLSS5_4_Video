@@ -6,7 +6,8 @@ import cv2
 import numpy as np
 
 import pipeline
-from image_editor import Viewport, SelectionMask, blend_selection
+import color_preservation
+from image_editor import Viewport, SelectionMask
 
 
 class ImageEditorMixin:
@@ -26,14 +27,17 @@ class ImageEditorMixin:
     def _build_mask_controls(self, parent):
         self._note(parent, '对当前图片绘制选区，按原图像素保存。首次落笔会自动启用局部遮罩。')
         grid = self._section(parent, '选区作用')
-        grid.add(ttk.Checkbutton(grid, text='启用局部遮罩', variable=self.v_mask_enabled, command=self._schedule_image_render))
+        grid.add(ttk.Checkbutton(grid, text='启用局部遮罩', variable=self.v_mask_enabled, command=self._mask_settings_changed))
         grid.add(ttk.Checkbutton(grid, text='显示红色提示层', variable=self.v_mask_overlay, command=self._schedule_image_render))
-        self._choice(grid, '处理范围', self.v_mask_mode, ['只处理涂抹区域', '保护涂抹区域'], self._schedule_image_render)
+        self._choice(grid, '处理范围', self.v_mask_mode, ['只处理涂抹区域', '保护涂抹区域'], self._mask_settings_changed)
+        self.color_mask_selector = self._choice(grid, '遮罩作用', self.v_color_mask_scope,
+            list(color_preservation.MASK_SCOPES.values()), self._color_mask_scope_changed)
+        self._note(parent, '整个处理结果：未处理区域保留原图。仅原色彩保留：整图使用 DLSS 细节，只在选区校正颜色；可反向保护和羽化。颜色强度在“参数”页调节。其他超分引擎仍使用整个处理结果遮罩。')
         grid = self._section(parent, '绘制与导航')
         self._choice(grid, '鼠标左键工具', self.v_image_tool, ['平移', '画笔', '橡皮', '矩形选区', '对比分隔线'], self._tool_changed)
         self._scale(grid, '画笔直径（原图像素）', self.v_brush_size, 2, 600, 1, self._schedule_image_render)
-        self._scale(grid, '边缘羽化半径（原图像素）', self.v_feather, 0, 100, 1, self._schedule_image_render)
-        self._note(parent, '滚轮以鼠标位置为中心缩放；平移工具用左键拖动。绘制时可用鼠标中键或右键拖动画面。松开画笔后预览羽化；羽化为 0 时保留硬边。')
+        self._scale(grid, '边缘羽化半径（原图像素）', self.v_feather, 0, 100, 1, self._mask_settings_changed)
+        self._note(parent, '滚轮以鼠标位置为中心缩放；平移工具用左键拖动。绘制时可用鼠标中键或右键拖动画面。红色提示层显示选区，结束一笔后自动应用羽化、颜色和遮罩。')
         grid = self._section(parent, '编辑选区')
         for label, action in [('撤销', 'undo'), ('重做', 'redo'), ('清空选区', 'clear'),
                               ('全选', 'all'), ('反选', 'invert')]:
@@ -128,7 +132,7 @@ class ImageEditorMixin:
         point = self._image_point(event)
         tool = '平移' if force_pan else self.v_image_tool.get()
         if tool in ('画笔', '橡皮', '矩形选区'):
-            if self.thread and self.thread.is_alive():
+            if self.thread and self.thread.is_alive() and not self._preview_task:
                 return
             w, h, *_ = self._image_geometry()
             if not (0 <= point[0] < w and 0 <= point[1] < h):
@@ -178,11 +182,12 @@ class ImageEditorMixin:
             self.selection.revision += 1
         if state['tool'] in ('画笔', '橡皮', '矩形选区'):
             self.selection.end_stroke()
+            self.on_settings_change()
         self._interaction = None
         self._schedule_image_render()
 
     def _mask_action(self, action):
-        if not self.current_is_image or self.selection is None or (self.thread and self.thread.is_alive()):
+        if not self.current_is_image or self.selection is None or (self.thread and self.thread.is_alive() and not self._preview_task):
             return 'break'
         self.selection.end_stroke()
         self._interaction = None
@@ -197,6 +202,7 @@ class ImageEditorMixin:
         elif action == 'invert':
             self.selection.replace(255 - self.selection.data)
         self.v_mask_enabled.set(1)
+        self.on_settings_change()
         self._schedule_image_render()
         return 'break'
 
@@ -228,15 +234,13 @@ class ImageEditorMixin:
             adjusted[1, 1] *= h / array.shape[0]
             return cv2.warpAffine(array, adjusted, (cw, ch), flags=cv2.INTER_LINEAR, borderValue=border)
         original = project(self.image_bgr, (34, 27, 22))
-        processed = project(self.image_dlss, (34, 27, 22)) if self.image_dlss is not None else original.copy()
+        result = self._image_output()
+        processed = project(result[..., :3], (34, 27, 22)) if result is not None else original.copy()
         alpha = None
         if self.selection is not None:
-            # Keep painting responsive; calculate the exact feathered selection on release.
-            drawing = self._interaction and self._interaction['tool'] in ('画笔', '橡皮')
-            raw = self.selection.data if drawing else self.selection.alpha(self.v_feather.get())
-            alpha = project(raw)
-        if self.v_mask_enabled.get() and alpha is not None:
-            processed = blend_selection(original, processed, alpha, self.v_mask_mode.get() == '保护涂抹区域')
+            # Draw the selection immediately; the preview worker applies color,
+            # feathering and compositing from a copy after the stroke changes.
+            alpha = project(self.selection.data)
         view = self.view_var.get()
         if view == '原图':
             shown = original
@@ -266,17 +270,11 @@ class ImageEditorMixin:
         self._show_brush_cursor()
 
     def _image_output(self):
-        if self.image_dlss is None:
-            return None
-        output = self.image_dlss
-        size = (output.shape[1], output.shape[0])
-        if self.v_mask_enabled.get() and self.selection is not None:
-            original = cv2.resize(self.image_bgr, size, interpolation=cv2.INTER_CUBIC)
-            alpha = cv2.resize(self.selection.alpha(self.v_feather.get()), size, interpolation=cv2.INTER_LINEAR)
-            output = blend_selection(original, output, alpha, self.v_mask_mode.get() == '保护涂抹区域')
-        if getattr(self, 'image_alpha', None) is not None:
-            output = np.dstack([output, cv2.resize(self.image_alpha, size, interpolation=cv2.INTER_LINEAR)])
-        return output
+        return self._confirmed_image
+
+    def _mask_settings_changed(self, event=None):
+        self.on_settings_change()
+        self._schedule_image_render()
 
     def _save_mask(self):
         if not self.current_is_image or self.selection is None:

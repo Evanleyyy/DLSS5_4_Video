@@ -236,6 +236,8 @@ def release_guidance_models():
 def get_depth_model():
     global _depth_model
     if _depth_model is None:
+        import model_sessions
+        model_sessions.release_for_guidance()
         _require_torch("深度生成")
         sys.path.insert(0, DAV2_DIR)
         from depth_anything_v2.dpt import DepthAnythingV2
@@ -315,6 +317,8 @@ _flow_model = None
 def get_flow_model():
     global _flow_model
     if _flow_model is None:
+        import model_sessions
+        model_sessions.release_for_guidance()
         _require_torch("光流生成")
         import torch
         from torchvision.models.optical_flow import Raft_Large_Weights, raft_large
@@ -327,6 +331,31 @@ def get_flow_model():
         m.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
         _flow_model = (m, w.transforms())
     return _flow_model
+
+
+def infer_flow_pair(prev_bgr, cur_bgr, edge=720, model=None):
+    """Backward motion on the current frame grid, shared by preview and export."""
+    import torch
+    model, transforms = get_flow_model() if model is None else model
+    h, w = cur_bgr.shape[:2]
+    scale = min(1.0, edge / min(h, w)) if edge else 1.0
+    fw = _round8(min(w, max(int(w * scale), 8)))
+    fh = _round8(min(h, max(int(h * scale), 8)))
+    if (fw, fh) != (w, h):
+        p1 = cv2.resize(cur_bgr, (fw, fh)); p2 = cv2.resize(prev_bgr, (fw, fh))
+    else:
+        p1, p2 = cur_bgr, prev_bgr
+    img1 = torch.from_numpy(p1[:, :, ::-1].copy()).permute(2, 0, 1).float().unsqueeze(0) / 255.0
+    img2 = torch.from_numpy(p2[:, :, ::-1].copy()).permute(2, 0, 1).float().unsqueeze(0) / 255.0
+    img1, img2 = transforms(img1, img2)
+    with torch.no_grad(), amp():
+        fl = model(img1.to(DEVICE), img2.to(DEVICE), num_flow_updates=FLOW_ITERS)[-1]
+    fl = fl[0].permute(1, 2, 0).cpu().float().numpy()   # (fh, fw, 2)
+    if (fw, fh) != (w, h):
+        fl = cv2.resize(fl, (w, h), interpolation=cv2.INTER_LINEAR)
+        fl[..., 0] *= w / fw                            # displacement in full-res px
+        fl[..., 1] *= h / fh
+    return fl  # Current -> previous flow, evaluated on the current frame grid.
 
 
 @uses_video_cache
@@ -350,39 +379,13 @@ def generate_flow(video, frame_limit=None, progress=None, cancel=None, force=Fal
     task_control.checkpoint()
     (model, transforms) = get_flow_model()
 
-    def fed_dims(img):
-        h, w = img.shape[:2]
-        short_edge = min(h, w)
-        scale = min(1.0, edge / short_edge) if edge else 1.0
-        fw = _round8(min(w, max(int(w * scale), 8)))
-        fh = _round8(min(h, max(int(h * scale), 8)))
-        return fw, fh
-
-    def infer(prev_bgr, cur_bgr):
-        h, w = cur_bgr.shape[:2]
-        fw, fh = fed_dims(cur_bgr)
-        if (fw, fh) != (w, h):
-            p1 = cv2.resize(cur_bgr, (fw, fh)); p2 = cv2.resize(prev_bgr, (fw, fh))
-        else:
-            p1, p2 = cur_bgr, prev_bgr
-        img1 = torch.from_numpy(p1[:, :, ::-1].copy()).permute(2, 0, 1).float().unsqueeze(0) / 255.0
-        img2 = torch.from_numpy(p2[:, :, ::-1].copy()).permute(2, 0, 1).float().unsqueeze(0) / 255.0
-        img1, img2 = transforms(img1, img2)
-        with torch.no_grad(), amp():
-            fl = model(img1.to(DEVICE), img2.to(DEVICE), num_flow_updates=FLOW_ITERS)[-1]
-        fl = fl[0].permute(1, 2, 0).cpu().float().numpy()   # (fh, fw, 2)
-        if (fw, fh) != (w, h):
-            fl = cv2.resize(fl, (w, h), interpolation=cv2.INTER_LINEAR)
-            fl[..., 0] *= w / fw                            # displacement in full-res px
-            fl[..., 1] *= h / fh
-        return fl  # Current -> previous flow, evaluated on the current frame grid.
 
     prev = None
     for i, cur in iter_frames(video, frame_limit if frame_limit else None):
         if prev is not None:
             p = os.path.join(flow_dir, f"{i:06d}.flo")
             if not (os.path.exists(p) and not force):
-                write_flo(p, infer(prev, cur))
+                write_flo(p, infer_flow_pair(prev, cur, edge=edge, model=(model, transforms)))
             if progress: progress(i, total, "ok")
         else:
             p = os.path.join(flow_dir, f"000000.flo")
@@ -418,6 +421,15 @@ def generate_dlss(video, settings=None, frame_limit=None, progress=None):
         raise ValueError("视频没有可处理的帧")
     dm, fm, directory = out_dirs(video)
     os.makedirs(directory, exist_ok=True)
+    if dlss_cache_matches(video, settings, n - 1):
+        try:
+            validate_dlss_frames(video, settings, n, verify=True)
+        except ValueError:
+            pass  # A missing or damaged frame requires a complete temporal rerun.
+        else:
+            if progress:
+                progress(n, n, 'cached')
+            return n
     record = _cache_record(video, {'kind': 'dlss', 'settings': settings, 'frames': n})
     if settings['super_resolution']['engine'] != 'dlss':
         import sr_backend
@@ -431,7 +443,8 @@ def generate_dlss(video, settings=None, frame_limit=None, progress=None):
         return result['count']
     _begin_cache(directory, record)
     tw, th = (w + 7) // 8 * 8, (h + 7) // 8 * 8
-    live = dlss_layers.LayeredLive(tw, th, settings)
+    import model_sessions
+    live = model_sessions.acquire_dlss(tw, th, settings)
     done = 0
     try:
         for i, frame in iter_frames(video, n):
@@ -466,13 +479,13 @@ def generate_dlss(video, settings=None, frame_limit=None, progress=None):
         live.close()
 
 
-def validate_dlss_frames(video, settings, frames):
+def validate_dlss_frames(video, settings, frames, verify=False):
     from frame_sequence import validate_frames
     from sr_settings import normalize
     _, _, width, height = video_info(video)
     cfg = normalize(settings.get('super_resolution'))
     scale = 1 if cfg['engine'] == 'dlss' else cfg['scale']
-    validate_frames(out_dirs(video)[2], frames, (width * scale, height * scale))
+    validate_frames(out_dirs(video)[2], frames, (width * scale, height * scale), verify=verify)
 
 
 def dlss_cache_matches(video, settings, frame=0):

@@ -24,6 +24,8 @@ def _worker(connection, width, height, settings, log_path):
         while True:
             command, payload = connection.recv()
             if command == 'close':
+                # All results have been delivered; no inference or output is pending.
+                connection.send(('closing', None))
                 break
             if command != 'process':
                 raise ValueError('未知的渲染命令')
@@ -109,7 +111,12 @@ class Live:
             if self._closed:
                 raise RuntimeError('DLSS 会话已关闭')
             updated = {**self.settings, **settings}
-            if updated.get('runtime_version', 'auto') != self.settings.get('runtime_version', 'auto'):
+            version_changed = updated.get('runtime_version', 'auto') != self.settings.get('runtime_version', 'auto')
+            runtime_changed = version_changed and dlss_runtime.resolve(updated.get('runtime_version', 'auto'))['id'] != self.runtime['id']
+            # Preset is a native create-time option. Restart outside the child so
+            # a supplied host hanging in shutdown cannot stall parameter edits.
+            preset_changed = updated.get('preset', 1) != self.settings.get('preset', 1)
+            if runtime_changed or preset_changed:
                 self._stop()
                 self.settings = updated
                 try:
@@ -148,11 +155,18 @@ class Live:
         try:
             if process is not None and process.pid is not None:
                 if process.is_alive() and not force:
+                    acknowledged = False
                     try:
                         self._connection.send(('close', None))
+                        if self._connection.poll(5):
+                            status, _ = self._connection.recv()
+                            acknowledged = status == 'closing'
                     except (EOFError, OSError, BrokenPipeError):
                         pass
-                    process.join(5)
+                    # Some supplied native hosts hang in dlssnr_shutdown. Once the
+                    # idle worker acknowledges, give teardown a brief grace period;
+                    # the existing owned-process termination releases its GPU state.
+                    process.join(.1 if acknowledged else 0)
                 if process.is_alive():
                     process.terminate()
                     process.join(5)

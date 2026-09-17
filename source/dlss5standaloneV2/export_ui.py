@@ -28,7 +28,7 @@ class ExportMixin:
             text += ' 单张图片不包含光流信息。'
         else:
             text = '按原视频帧率导出完整 MP4。' if video else '可提取当前帧，也可将全部帧分别保存为 PNG 序列。'
-        self.export_hint.configure(text=text + ' 每个勾选内容单独保存，缺少的深度、光流或 DLSS 会自动生成。')
+        self.export_hint.configure(text=text + ' 导出使用当前参数；视频会处理整段素材，缺少的所选通道会自动生成。')
 
     def _export_request(self, directory):
         image = self.current_is_image
@@ -45,14 +45,18 @@ class ExportMixin:
                    'channels': [key for key, value in self.v_export_channels.items() if value.get()],
                    'directory': directory, 'fps': fps, 'duration': duration,
                    'audio': bool(self.v_export_audio.get()), 'crf': self._export_crf(),
-                   'frame': int(self.fslider.get()), 'frames': self.nframes}
+                   'frame': int(self.fslider.get()), 'frames': self.nframes, 'allow_generate': True}
         media_export.validate_request(request)
+        if image and 'dlss' in request['channels']:
+            self._require_confirmed_result()
         if image:
             request['images'] = {'original': self.image_bgr}
+            if 'depth' in request['channels']:
+                request['images']['depth'] = self._confirmed_image_depth
             if 'dlss' in request['channels']:
                 request['images']['dlss'] = self._image_output()
                 if request['images']['dlss'] is None:
-                    raise ValueError('还没有可导出的 DLSS 结果，请先运行 DLSS')
+                    raise ValueError('尚无处理结果，请等待自动渲染完成')
             if 'mask' in request['channels']:
                 request['images']['mask'] = self.selection.alpha(self.v_feather.get()).copy()
         return request
@@ -68,8 +72,13 @@ class ExportMixin:
         except ValueError as error:
             messagebox.showwarning('导出选项', str(error))
             return
-        directory = filedialog.askdirectory(title='选择导出位置（每次导出新建独立文件夹）')
+        automatic, self._auto_enabled = self._auto_enabled, False
+        try:
+            directory = filedialog.askdirectory(title='选择导出位置（每次导出新建独立文件夹）')
+        finally:
+            self._auto_enabled = automatic
         if not directory:
+            self._schedule_processing()
             return
         request['directory'] = directory
         self._in_thread(lambda: self._run_export_request(request))

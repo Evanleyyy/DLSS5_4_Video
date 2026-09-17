@@ -44,6 +44,7 @@ def verify(directory):
             root = tk.Tk()
             root.report_callback_exception = lambda kind, error, tb: errors.append(str(error))
             app = gui.App(root)
+            app._auto_enabled = False  # This specialized check schedules explicit jobs.
             app.tabs.select(app.pages['超分'])
             pump()
             button = next(w for w in widgets(root) if isinstance(w, ttk.Button) and w.cget('text') == '检查并补全所选模型')

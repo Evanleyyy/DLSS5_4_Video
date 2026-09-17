@@ -179,13 +179,17 @@ def _export_channels(request, settings, *, progress=None, log=None):
     progress = progress or (lambda *args: None)
     log = log or (lambda text: None)
     source = request['source']
+    allow_generate = request.get('allow_generate', True)
     if request['is_image']:
         images = dict(request['images'])
         if 'dlss' in channels and images.get('dlss') is None:
             raise ValueError('还没有可导出的 DLSS 结果，请先运行 DLSS')
         if 'depth' in channels:
-            progress(0, 1, '生成图片深度')
-            images['depth'] = np.rint(pipeline.infer_depth_frame(images['original']) * 65535).astype(np.uint16)
+            if allow_generate and images.get('depth') is None:
+                progress(0, 1, '生成图片深度')
+                images['depth'] = np.rint(pipeline.infer_depth_frame(images['original']) * 65535).astype(np.uint16)
+            elif images.get('depth') is None:
+                raise ValueError('缺少已生成的图片深度，请先生成深度通道。')
         indices = range(1)
     else:
         from dlss_layers import guidance_needs
@@ -194,7 +198,7 @@ def _export_channels(request, settings, *, progress=None, log=None):
         need_flow = 'flow' in channels or ('dlss' in channels and layer_flow)
         for needed, operation, label in [(need_depth, pipeline.generate_depth, '生成深度'),
                                           (need_flow, pipeline.generate_flow, '生成光流')]:
-            if needed:
+            if needed and allow_generate:
                 operation(source, progress=lambda i, n, status, label=label: progress(i, n, label))
         if 'dlss' in channels:
             cached = pipeline.dlss_cache_matches(source, settings, request['frames'] - 1)
@@ -203,9 +207,11 @@ def _export_channels(request, settings, *, progress=None, log=None):
                 try:
                     pipeline.validate_dlss_frames(source, settings, request['frames'])
                 except ValueError as error:
-                    log(str(error) + '；缓存不完整，将重新生成处理结果。')
+                    log(str(error) + ('；缓存不完整，将重新生成处理结果。' if allow_generate else '；请重新生成处理结果。'))
                     cached = False
             if not cached:
+                if not allow_generate:
+                    raise ValueError('处理结果缓存缺失或与参数不一致，请重新生成处理结果。')
                 pipeline.generate_dlss(source, settings=settings,
                     progress=lambda i, n, status: progress(i, n, '生成处理结果'))
                 pipeline.validate_dlss_frames(source, settings, request['frames'])

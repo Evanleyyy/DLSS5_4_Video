@@ -84,6 +84,7 @@ def verify_denoise(app, directory, screenshots=False):
 
     def refresh():
         app.on_settings_change()
+        app.confirm_processing()
         settle()
         assert app.image_dlss is not None, app.status.cget('text')
         assert not multiprocessing.active_children(), '图片任务完成后仍有模型进程'
@@ -178,6 +179,8 @@ def verify_denoise(app, directory, screenshots=False):
         app.selection.revision += 1
         app.v_mask_enabled.set(1)
         app.v_feather.set(5)
+        app.confirm_processing()
+        settle()
         masked = app._image_output().copy()
         np.testing.assert_array_equal(masked[:20], original[:20])
         app.view_var.set('DLSS')
@@ -225,6 +228,8 @@ def verify_denoise(app, directory, screenshots=False):
         app.fslider.configure(to=app.nframes - 1)
         app.fslider.set(0)
         app._update_export_btn()
+        settle()
+        app.confirm_processing()
         settle()
         video_export = export('视频', ['dlss'])
         assert pipeline.video_info(video_export['outputs'][0])[:2] == (3, 12.)

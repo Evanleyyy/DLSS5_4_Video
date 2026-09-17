@@ -20,6 +20,7 @@ def verify(directory):
     results = {'status': 'running', 'models': {}}
     root = tk.Tk()
     app = gui.App(root)
+    app._auto_enabled = False  # This specialized check schedules explicit jobs.
 
     def pump(predicate, timeout=180):
         deadline = time.monotonic() + timeout

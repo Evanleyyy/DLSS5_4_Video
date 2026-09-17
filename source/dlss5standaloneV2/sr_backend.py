@@ -3,17 +3,15 @@ import json
 import errno
 import os
 from pathlib import Path
-import subprocess
 import shutil
-import time
 import uuid
-from contextlib import nullcontext
 
 import cv2
 import numpy as np
 import sr_settings
 import task_control
-from process_lifetime import owned_process
+import model_sessions
+from sr_session import ResidentWorker
 
 
 def job_directory():
@@ -31,16 +29,8 @@ def run_job(job, progress=None):
         raise FileNotFoundError('超分运行库不完整，请使用完整安装包修复：\n' + '\n'.join(absent[:4]))
     import model_assets
     model_assets.prepare([cfg['engine']], cfg, progress)
-    # Depth and flow are auxiliary channels, not concurrent diffusion models.
-    import gc
     import pipeline
-    pipeline._depth_model = None
-    pipeline._flow_model = None
-    gc.collect()
-    if 'torch' in __import__('sys').modules:
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+    pipeline.release_guidance_models()
     directory = job_directory()
     (directory / 'active').touch()
     job.update(model_root=str(sr_settings.model_root(cfg)), runtime=str(sr_settings.runtime_root()),
@@ -58,47 +48,37 @@ def run_job(job, progress=None):
                TMP=str(directory), TEMP=str(directory), MPLCONFIGDIR=str(directory / 'mpl'))
     if cfg['engine'] == 'pisa':
         env['PYTHONPATH'] = str(runtime / 'pisa-packages') + os.pathsep + env['PYTHONPATH']
-    # The worker lives outside PyInstaller's archive and uses the relocatable interpreter.
-    worker = runtime / 'sr-worker' / 'sr_worker.py'
-    if not worker.is_file():
-        worker = sr_settings.app_root() / 'packaging' / 'sr_worker.py'
-    command = [str(runtime / 'python/python.exe'), '-u', str(worker), str(request)]
-    flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-    log_path = directory / 'inference.log'
-    control = task_control.current()
-    remote = control.remote(directory) if control is not None else nullcontext()
-    with remote, log_path.open('w', encoding='utf-8') as log, \
-         owned_process(command, env=env, cwd=directory, stdout=log, stderr=log, creationflags=flags) as process:
-        elapsed = 0.
-        previous_time = time.monotonic()
-        last = None
-        try:
-            while process.poll() is None:
-                now = time.monotonic()
-                paused = control.sync_remote() if control is not None else False
-                if not paused:
-                    elapsed += now - previous_time
-                previous_time = now
-                if elapsed > 24 * 3600:
-                    raise TimeoutError('超分处理超过 24 小时，已停止')
-                if progress:
-                    try:
-                        current = json.loads((directory / 'progress.json').read_text(encoding='utf-8'))
-                        if current != last:
-                            progress(current['done'], current['total'], current['stage'])
-                            last = current
-                    except (OSError, ValueError, KeyError):
-                        pass
-                time.sleep(.2)
-        finally:
-            (directory / 'active').unlink(missing_ok=True)
-    if process.returncode:
-        error_path = directory / 'error.txt'
-        detail = error_path.read_text(encoding='utf-8') if error_path.exists() else '推理进程退出码 ' + str(process.returncode)
-        raise RuntimeError(detail + '\n日志：' + str(log_path))
-    task_control.checkpoint()
-    result = json.loads((directory / 'result.json').read_text(encoding='utf-8'))
-    return result
+    # Development uses the current source; installed builds use the deployed helper.
+    import sys
+    worker = (runtime / 'sr-worker/sr_worker.py' if getattr(sys, 'frozen', False)
+              else sr_settings.app_root() / 'packaging/sr_worker.py')
+    if not getattr(sys, 'frozen', False):
+        env['PYTHONPATH'] += os.pathsep + str(Path(__file__).resolve().parent)
+    command = [str(runtime / 'python/python.exe'), '-u', str(worker)]
+    owner = model_sessions.current()
+    key = (cfg['engine'], str(sr_settings.model_root(cfg)),
+           json.dumps(sr_settings.fingerprint(cfg), sort_keys=True))
+    def create():
+        session_directory = job_directory()
+        # The model's library caches outlive a single request directory.
+        environment = {**env, 'HF_HOME': str(session_directory / 'hf'),
+            'TORCH_HOME': str(session_directory / 'torch'), 'TMP': str(session_directory),
+            'TEMP': str(session_directory), 'MPLCONFIGDIR': str(session_directory / 'mpl')}
+        return ResidentWorker(command, environment, session_directory)
+    session = None
+    try:
+        session = owner.acquire_sr(key, create) if owner is not None else create()
+        total = len(job['inputs']) if job['kind'] == 'images' else job['frames']
+        return session.run(request, total, progress)
+    except BaseException:
+        if owner is not None:
+            owner.close_sr()
+        raise
+    finally:
+        (directory / 'active').unlink(missing_ok=True)
+        if owner is None and session is not None:
+            session.close()
+
 
 
 def process_image(image, settings, progress=None):

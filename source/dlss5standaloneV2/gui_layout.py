@@ -97,7 +97,7 @@ class LayoutMixin:
         return label
 
     def _build_layout(self):
-        self.root.title('DLSS5 本地超分工作台 · 0.4.1')
+        self.root.title('DLSS5 本地超分工作台 · 0.4.4')
         self.root.geometry('1240x820')
         self.root.minsize(680, 520)
         self.root.columnconfigure(0, weight=1)
@@ -129,6 +129,9 @@ class LayoutMixin:
             page.bind_wheel()
         progress = ttk.Frame(self.root, padding=(8, 0, 8, 6))
         progress.grid(row=1, column=0, sticky='ew')
+        self.processing_note = ttk.Label(progress, text='修改参数后自动渲染，连续调整时只处理最新设置。', anchor='w')
+        self.processing_note.pack(fill='x', pady=(0, 4))
+        self.processing_note.bind('<Configure>', lambda e: self.processing_note.configure(wraplength=max(100, e.width - 8)))
         self.pbar = ttk.Progressbar(progress, maximum=100)
         self.pbar.pack(fill='x')
         self.status = ttk.Label(progress, text='就绪', anchor='w')
@@ -168,16 +171,15 @@ class LayoutMixin:
         grid = self._section(parent, '导入素材')
         self._button(grid, '导入图片', self.import_image)
         self._button(grid, '导入视频', self.import_video)
-        self._button(grid, '批量处理图片文件夹', self.process_images)
+        self._button(grid, '选择批量图片文件夹', self.process_images)
         self.vlabel = self._note(parent, '尚未导入素材')
         grid = self._section(parent, '生成与处理')
         self.depth_btn = self._button(grid, '生成深度', lambda: self.run_worker('depth'))
         self.flow_btn = self._button(grid, '生成光流', lambda: self.run_worker('flow'))
-        self._button(grid, '运行所选引擎', lambda: self.run_worker('dlss'))
         self.task_pause_btn = self._button(grid, '暂停生成', self.toggle_generation_pause)
         self.task_pause_btn.configure(state='disabled')
         self._note(parent, '生成时可暂停／继续。当前帧、分块或 GPU 步骤完成后生效；暂停保留进度和显存，继续不会从头生成。')
-        self._note(parent, '在“超分”页选择模型。DLSS 图片导入后自动处理；扩散超分点击运行后处理。视频的深度和光流结果会保存为缓存。')
+        self._note(parent, '导入或修改参数后自动渲染；同一模型直接复用。视频调参和定位时更新当前帧，作为单帧参考；导出时按最终参数连续处理整段视频。')
         self._note(parent, '局部遮罩用于当前单张图片。批量图片和视频按“参数”面板设置处理。')
 
     def _build_preview(self, parent):

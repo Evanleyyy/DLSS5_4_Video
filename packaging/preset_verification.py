@@ -30,6 +30,7 @@ def verify(directory):
         root = tk.Tk()
         root.report_callback_exception = lambda kind, error, tb: errors.append(str(error))
         app = gui.App(root)
+        app._auto_enabled = False  # This specialized check schedules explicit jobs.
         app.tabs.select(app.pages['参数'])
         pump()
         return app
@@ -58,6 +59,8 @@ def verify(directory):
         app.layer_vars[1]['motionSY'].set(.6)
         app.v_second_enabled.set(False)
         app.v_overall_weight.set(65)
+        app.v_color_preservation.set(72)
+        app.v_color_mask_scope.set('仅原色彩保留（DLSS）')
         app.denoise_vars['input_denoise']['luma'].set(13)
         app.denoise_vars['input_denoise']['weight'].set(45)
         app.denoise_vars['output_denoise']['enabled'].set(True)
@@ -103,7 +106,7 @@ def verify(directory):
         live = Live()
         app._live = live
         app._live_cache = ('stale',)
-        app.image_dlss = object()
+        previous_result = app.image_dlss = object()
         app.preset_selector.current(0)
         app.preset_selector.event_generate('<<ComboboxSelected>>')
         pump()
@@ -111,11 +114,11 @@ def verify(directory):
         assert app._capture_preset_parameters() == expected
         assert app.v_sr_engine.get() == sr_settings.ENGINES['seedvr2']
         assert app.sr_seed.winfo_manager() == 'pack'
-        assert live.closed and app._live_cache is None and app.image_dlss is None
+        assert live.closed and app._live_cache is None and app.image_dlss is previous_result
         assert app._settings_hash() != old_key
         assert app.denoise_scales['input_denoise'][0].cget('state') == 'disabled'
         assert app.denoise_scales['output_denoise'][0].cget('state') == 'normal'
-        result['select_apply_updates_engine_and_invalidates_result'] = True
+        result['select_apply_updates_draft_and_preserves_previous_result'] = True
 
         app.layer_vars[0]['intensity'].set(.2)
         pump()

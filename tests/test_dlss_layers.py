@@ -84,6 +84,21 @@ class LayerTests(unittest.TestCase):
         self.first_factory.assert_not_called()
         self.second_factory.assert_not_called()
 
+    def test_color_preservation_uses_original_after_both_layers_and_denoising(self):
+        live = self.session(second_layer={}, color_preservation={'strength': 1})
+        # The fake renderer adds a flat color cast. Full color recovery removes it
+        # against the original input, not against layer two's input or denoised input.
+        def denoise(frame, settings):
+            result = frame.copy()
+            result[..., :3] += 2
+            return result
+        with patch.object(layers.image_denoise, 'apply_rgba', side_effect=denoise):
+            np.testing.assert_array_equal(self.process(live), self.rgba)
+        self.assertNotIn('color_preservation', live.first.settings)
+        self.assertNotIn('color_preservation', live.second.settings)
+        live.update({'second_layer': {}, 'color_preservation': {'strength': .5}})
+        self.assertTrue((self.process(live)[..., :3] == 33).all())
+
     def test_disabled_second_pass_uses_one_model_and_preserves_settings_when_reenabled(self):
         live = self.session()
         self.assertTrue((self.process(live)[..., :3] == 23).all())
@@ -144,6 +159,7 @@ class LayerTests(unittest.TestCase):
         self.assertFalse(pipeline.dlss_cache_matches(str(video), settings, 3))
         self.assertFalse(pipeline.dlss_cache_matches(str(video), {**settings, 'overall_weight': 1}))
         self.assertFalse(pipeline.dlss_cache_matches(str(video), {**settings, 'second_layer': None}))
+        self.assertFalse(pipeline.dlss_cache_matches(str(video), {**settings, 'color_preservation': {'strength': .5}}))
 
 
 if __name__ == '__main__':

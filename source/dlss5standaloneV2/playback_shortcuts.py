@@ -78,7 +78,8 @@ class PlaybackShortcuts:
         if not self._down:
             self._down = True
             app = self.app
-            if app.video and not app.current_is_image and not app._busy and not app._closing:
+            if (app.video and not app.current_is_image and not app._closing
+                    and (not app._busy or getattr(app, '_preview_task', False))):
                 if app.playing:
                     app.pause()
                 else:

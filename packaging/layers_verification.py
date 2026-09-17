@@ -45,6 +45,7 @@ def verify_layers(app, directory, video, screenshots=False):
 
     def refresh():
         app.on_settings_change()
+        app.confirm_processing()
         settle()
         assert app.image_dlss is not None, app.status.cget('text')
         assert not multiprocessing.active_children(), '图片任务完成后仍有第二层进程'
@@ -127,6 +128,8 @@ def verify_layers(app, directory, video, screenshots=False):
         app.selection.revision += 1
         app.v_mask_enabled.set(1)
         app.v_feather.set(4)
+        app.confirm_processing()
+        settle()
         masked = app._image_output().copy()
         app.view_var.set('DLSS')
         app.display_view()
@@ -173,6 +176,8 @@ def verify_layers(app, directory, video, screenshots=False):
         settings = app._collect_settings()
         with patch.object(pipeline, 'generate_depth', wraps=pipeline.generate_depth) as generate_depth, \
              patch.object(pipeline, 'generate_flow', wraps=pipeline.generate_flow) as generate_flow:
+            app.confirm_processing()
+            settle()
             video_export = export('视频', ['dlss'])
             assert generate_depth.called and generate_flow.called, '必须读取第二层的引导需要'
         assert pipeline.video_info(video_export['outputs'][0])[:2] == (app.nframes, app.fps)

@@ -78,6 +78,11 @@ class CacheMixin:
         self._in_thread(lambda: self._clean_cache_worker(entries, cancel=True), pausable=False)
 
     def _clean_cache_worker(self, entries, cancel=False):
+        if not cancel and any(entry['type'] == 'sr' for entry in entries):
+            import model_sessions
+            owner = model_sessions.current()
+            if owner is not None:
+                owner.close_sr()
         freed, deferred, skipped = 0, 0, 0
         for entry in entries:
             try:

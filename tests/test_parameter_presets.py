@@ -18,6 +18,7 @@ class PresetTests(unittest.TestCase):
         self.store = PresetStore(Path(tempfile.mkdtemp(dir=directory)) / 'parameter_presets.json')
         self.parameters = normalize_parameters({'settings': {
             'intensity': .35, 'overall_weight': .65,
+            'color_preservation': {'strength': .8, 'mask_scope': 'color'},
             'input_denoise': {'enabled': False, 'luma': 12, 'chroma': 8, 'weight': .5},
             'output_denoise': {'enabled': True, 'luma': 2, 'chroma': 4, 'weight': .3},
             'super_resolution': {'engine': 'seedvr2', 'scale': 4, 'seed': 19, 'batch': 9,

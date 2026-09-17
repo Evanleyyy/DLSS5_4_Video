@@ -17,6 +17,7 @@ def verify(directory, screenshots=False):
     directory.mkdir(parents=True, exist_ok=True)
     root = tk.Tk()
     app = gui.App(root)
+    app._auto_enabled = False  # This specialized check schedules explicit jobs.
     # Tests explicitly run jobs; deferred slider callbacks must not invalidate them.
     def settle():
         for _ in range(5):

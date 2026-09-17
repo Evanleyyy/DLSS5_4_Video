@@ -94,6 +94,7 @@ def verify(directory):
         root = tk.Tk()
         root.report_callback_exception = lambda kind, error, tb: errors.append(str(error))
         app = gui.App(root)
+        app._auto_enabled = False  # This specialized check schedules explicit jobs.
         app.tabs.select(app.pages['参数'])
         app.layer_vars[0]['runtime_version'].set(dlss_runtime.LABELS['310.8.SF-v2'])
         app.layer_vars[1]['runtime_version'].set(dlss_runtime.LABELS['bundled'])
@@ -112,6 +113,7 @@ def verify(directory):
         root = tk.Tk()
         root.report_callback_exception = lambda kind, error, tb: errors.append(str(error))
         app = gui.App(root)
+        app._auto_enabled = False  # This specialized check schedules explicit jobs.
         pump()
         assert app._collect_settings()['runtime_version'] == '310.8.SF-v2'
         assert app._read_single_layer(app.layer_vars[1])['runtime_version'] == 'bundled'

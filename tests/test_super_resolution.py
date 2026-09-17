@@ -17,6 +17,7 @@ import pipeline
 import cache_manager
 from image_editor import SelectionMask
 from image_editor_ui import ImageEditorMixin
+from image_editor import compose_result
 
 
 class Value:
@@ -57,13 +58,15 @@ class SuperResolutionTests(unittest.TestCase):
         dummy.selection.data[:, 4:] = 255
         dummy.v_mask_enabled, dummy.v_feather = Value(True), Value(0)
         dummy.v_mask_mode = Value('只处理涂抹区域')
-        result = dummy._image_output()
+        result = compose_result(dummy.image_bgr, dummy.image_dlss,
+                                {'super_resolution': {'engine': 'seedvr2'}}, dummy.selection.alpha(0), False, dummy.image_alpha)
         self.assertEqual(result.shape, (28, 36, 4))
         self.assertTrue(np.all(result[:, 0, :3] == 20))
         self.assertTrue(np.all(result[:, -1, :3] == 220))
         self.assertTrue(np.array_equal(result[..., 3], cv2.resize(dummy.image_alpha, (36, 28))))
         dummy.v_mask_mode = Value('保护涂抹区域')
-        reverse = dummy._image_output()
+        reverse = compose_result(dummy.image_bgr, dummy.image_dlss,
+                                 {'super_resolution': {'engine': 'seedvr2'}}, dummy.selection.alpha(0), True, dummy.image_alpha)
         self.assertTrue(np.all(reverse[:, 0, :3] == 220))
         self.assertTrue(np.all(reverse[:, -1, :3] == 20))
 

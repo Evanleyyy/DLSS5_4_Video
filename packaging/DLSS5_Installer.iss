@@ -4,7 +4,7 @@
 #ifndef ProjectRoot
   #error ProjectRoot is required
 #endif
-#define AppVersion "0.4.1"
+#define AppVersion "0.4.4"
 
 [Setup]
 AppId={{7BE891EC-ED7C-4745-9DFE-4523CDF01B9E}
@@ -13,6 +13,9 @@ AppVersion={#AppVersion}
 AppPublisher=Evanleyyy
 AppPublisherURL=https://github.com/Evanleyyy/DLSS5_4_Video
 DefaultDirName={code:DefaultLocation}
+DisableDirPage=no
+UsePreviousAppDir=yes
+AlwaysShowDirOnReadyPage=yes
 DefaultGroupName=DLSS5 本地超分工作台
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
@@ -48,8 +51,8 @@ Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 Name: "full"; Description: "更新程序（使用已安装的运行库与模型）"
 Name: "custom"; Description: "更新程序"; Flags: iscustom
 #else
-Name: "full"; Description: "标准安装（DLSS 可离线运行，其他模型按需准备）"
-Name: "withmodels"; Description: "安装并准备其他超分和引导模型（可能需要联网）"
+Name: "full"; Description: "标准安装（自动识别安装包旁的模型，缺失时提示下载）"
+Name: "withmodels"; Description: "安装并预选全部模型的下载提示（本地已有则跳过）"
 Name: "custom"; Description: "自定义安装"; Flags: iscustom
 #endif
 
@@ -60,7 +63,7 @@ Name: "app"; Description: "应用、DLSS 与离线超分运行库"; Types: full 
 Name: "app"; Description: "应用、DLSS 与离线超分运行库"; Types: full withmodels custom; Flags: fixed
 #endif
 #ifndef UpdateOnly
-Name: "models"; Description: "安装后检查并准备模型（可稍后准备，模型不随安装包分发）"; Types: withmodels
+Name: "models"; Description: "缺失时预选以下模型供下载（不会自动联网）"; Types: withmodels
 Name: "models\guidance"; Description: "深度与光流模型"; Types: withmodels
 Name: "models\pisa"; Description: "PiSA-SR 图片超分"; Types: withmodels
 Name: "models\seedvr2"; Description: "SeedVR2 3B FP8 图片／视频超分"; Types: withmodels
@@ -87,8 +90,15 @@ Source: "{#ProjectRoot}\packaging\sr_worker.py"; DestDir: "{app}\runtime\sr-work
 Source: "{#ProjectRoot}\source\dlss5standaloneV2\image_denoise.py"; DestDir: "{app}\runtime\sr-worker"; Flags: ignoreversion; Components: app
 Source: "{#ProjectRoot}\source\dlss5standaloneV2\task_control.py"; DestDir: "{app}\runtime\sr-worker"; Flags: ignoreversion; Components: app
 Source: "{#ProjectRoot}\docs\模型版本选择与安装.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+Source: "{#ProjectRoot}\docs\DLSS原色彩保留说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+Source: "{#ProjectRoot}\docs\确认后处理说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
 Source: "{#ProjectRoot}\docs\0.4.1更新说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+Source: "{#ProjectRoot}\docs\0.4.2更新说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+Source: "{#ProjectRoot}\docs\0.4.3更新说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+Source: "{#ProjectRoot}\docs\0.4.4更新说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
 Source: "{#ProjectRoot}\docs\模型按需部署说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+Source: "{#ProjectRoot}\docs\安装包同目录模型识别说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+Source: "{#ProjectRoot}\docs\处理性能排查说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
 Source: "{#ProjectRoot}\docs\本地超分操作说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
 Source: "{#ProjectRoot}\docs\暂停生成操作说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
 Source: "{#ProjectRoot}\docs\空格播放操作说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
@@ -102,28 +112,27 @@ Name: "{group}\DLSS5 本地超分工作台"; Filename: "{app}\DLSS5_App.exe"; Wo
 Name: "{autodesktop}\DLSS5 本地超分工作台"; Filename: "{app}\DLSS5_App.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-#ifndef UpdateOnly
-Filename: "{app}\DLSS5_App.exe"; Parameters: "--prepare-models={code:SelectedModels}"; StatusMsg: "检查并准备本地模型"; Flags: waituntilterminated skipifsilent; Check: HasSelectedModels
-#endif
+Filename: "{app}\DLSS5_App.exe"; Parameters: "--install-models-from=""{src}"" --models={code:SelectedModels}{code:ModelInstallMode}"; StatusMsg: "识别并安装本地模型，已有相同文件会跳过"; Flags: waituntilterminated
 Filename: "{app}\DLSS5_App.exe"; Description: "启动 DLSS5 本地超分工作台"; Flags: nowait postinstall skipifsilent
 
 [Code]
-#ifndef UpdateOnly
 function SelectedModels(Param: String): String;
 begin
   Result := '';
+#ifndef UpdateOnly
   if WizardIsComponentSelected('models\guidance') then Result := Result + 'guidance,';
   if WizardIsComponentSelected('models\pisa') then Result := Result + 'pisa,';
   if WizardIsComponentSelected('models\seedvr2') then Result := Result + 'seedvr2,';
   if WizardIsComponentSelected('models\vosr') then Result := Result + 'vosr,';
   if Length(Result) > 0 then Delete(Result, Length(Result), 1);
+#endif
 end;
 
-function HasSelectedModels: Boolean;
+function ModelInstallMode(Param: String): String;
 begin
-  Result := SelectedModels('') <> '';
+  Result := '';
+  if WizardSilent then Result := ' --models-silent';
 end;
-#endif
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   StandaloneDirectory: String;

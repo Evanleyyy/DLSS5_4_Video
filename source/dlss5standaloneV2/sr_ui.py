@@ -17,7 +17,6 @@ class SuperResolutionMixin:
         grid.minimum = 270
         self.sr_selector = self._choice(grid, '选择本地模型', self.v_sr_engine,
             list(sr_settings.ENGINES.values()), self._sr_engine_changed)
-        self._button(grid, '运行所选引擎', lambda: self.run_worker('dlss'))
         self.sr_info = self._note(parent, '')
         self.sr_common = ttk.Frame(parent)
         grid = self._section(self.sr_common, '输出与显存')
@@ -32,7 +31,7 @@ class SuperResolutionMixin:
         entry.bind('<FocusOut>', self.on_settings_change)
         entry.bind('<Return>', self.on_settings_change)
         grid.add(cell)
-        self._note(self.sr_common, '2 倍／4 倍改变实际导出尺寸。分块越小显存占用越低，耗时可能增加。扩散模型调整参数后，请点击运行；视频预览读取已生成结果。')
+        self._note(self.sr_common, '2 倍／4 倍改变实际导出尺寸。分块越小显存占用越低，耗时可能增加。修改参数后自动更新预览，导出视频时处理整段素材。')
         self.sr_pisa = ttk.Frame(parent)
         grid = self._section(self.sr_pisa, 'PiSA-SR 独立参数')
         self._scale(grid, '像素修复权重', self.sr_vars['pisa_pixel'], 0, 2, .05, self.on_settings_change)
@@ -50,7 +49,7 @@ class SuperResolutionMixin:
         self._button(grid, '恢复安装目录模型', self._reset_sr_models)
         self.sr_path_label = self._note(self.sr_paths, '')
         self._note(self.sr_paths, '优先复用本地模型；缺失或损坏的文件从官方源下载，支持断点续传。运行引擎前也会自动检查；模型齐全后可离线处理。')
-        self._note(parent, '处理顺序：前置降噪 → 所选引擎 → 后置降噪 → 整体权重 → 图片局部遮罩。降噪和整体权重位于“参数”页；双层与引导参数仅用于 DLSS。全部推理在本机完成。')
+        self._note(parent, '处理顺序：前置降噪 → 所选引擎 → 后置降噪 → 整体权重 → 图片局部遮罩。降噪和整体权重位于“参数”页；双层、引导与原色彩保留仅用于 DLSS。全部推理在本机完成。')
         self._show_sr_panels()
 
     def _read_sr_settings(self):
@@ -70,7 +69,7 @@ class SuperResolutionMixin:
                 panel.pack(fill='x')
         tips = {'dlss': '原尺寸增强：保留已有双层 DLSS 及独立参数。',
                 'pisa': '单步图片超分：像素修复与语义细节分别调节。支持单张与批量图片。',
-                'seedvr2': '图片及连续帧视频超分：按需加载模型，完成任务后释放显存。',
+                'seedvr2': '图片及连续帧视频超分：同一模型跨任务复用，切换模型或退出时释放。',
                 'vosr': '单步图片超分：VOSR 2.0 1.4B，支持单张与批量图片。'}
         self.sr_info.configure(text=tips[engine])
         self.sr_path_label.configure(text=str(sr_settings.model_root(self._read_sr_settings())))
