@@ -42,7 +42,7 @@ class FakeSecond(FakeFirst):
 
 class LayerTests(unittest.TestCase):
     def setUp(self):
-        self.first_patch = patch.object(layers.dlss_engine, 'Live', side_effect=FakeFirst)
+        self.first_patch = patch.object(layers.runtime_session, 'Live', side_effect=FakeFirst)
         self.second_patch = patch.object(layers, 'SecondPass', side_effect=FakeSecond)
         self.first_factory = self.first_patch.start()
         self.second_factory = self.second_patch.start()

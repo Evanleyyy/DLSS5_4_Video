@@ -7,7 +7,8 @@ $temporaryRoot = Join-Path $projectRoot 'build\inno-temp'
 New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
 $env:TEMP = $temporaryRoot
 $env:TMP = $temporaryRoot
-$portablePath = Join-Path $projectRoot ('build\installer-app-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+# Reuse one disposable staging directory instead of keeping a full runtime per build.
+$portablePath = Join-Path $projectRoot 'build\installer-app-current'
 $compiler = Join-Path $projectRoot 'build\inno\ISCC.exe'
 if (-not (Test-Path -LiteralPath $compiler)) { throw '缺少 Inno Setup 编译器 build/inno/ISCC.exe' }
 # Models never enter the installer. Check the build machine without forcing a download.

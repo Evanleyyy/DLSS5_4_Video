@@ -755,28 +755,20 @@ class App(PresetMixin, SuperResolutionMixin, LayerSettingsMixin, CacheMixin, Exp
 
 
 def _selftest():
-    """Headless DLSS smoke test (--selftest); writes result to _selftest.txt for a GUI-less verify."""
+    """Headless check uses the same isolated, architecture-selected renderer."""
+    import json
+    import runtime_session
     try:
-        import dlss_engine
-        import numpy as np
-        try:
-            import torch
-            tn = "torch=%s cuda=%s" % (torch.__version__, torch.cuda.is_available())
-        except Exception as te:
-            tn = "torch=ERR " + repr(te)
-        W, H = 320, 240
-        live = dlss_engine.Live(W, H, {'preset': 1, 'guidance_mode': 0})
-        rgba = np.zeros((H, W, 4), np.uint8); rgba[..., 3] = 255
-        o = live.process(rgba, np.zeros((H, W, 2), np.float32),
-                         np.zeros((H, W), np.float32), reset=True)
-        live.close()
-        msg = "DLSS_OK " + (str((o.shape[0], o.shape[1], o.shape[2])) if o is not None else "None")
-        msg += " | " + tn
-    except Exception as ex:
-        import traceback
-        msg = "DLSS_ERR " + repr(ex) + "\n" + traceback.format_exc()
-    with open("_selftest.txt", "w") as f:
-        f.write(msg)
+        result = runtime_session.selftest('auto')
+        text = 'DLSS_OK ' + json.dumps(result, ensure_ascii=False)
+        passed = True
+    except Exception as error:
+        text = 'DLSS_ERR ' + str(error)
+        passed = False
+    with open('_selftest.txt', 'w', encoding='utf-8') as handle:
+        handle.write(text)
+    if not passed:
+        raise SystemExit(1)
 
 
 def main():

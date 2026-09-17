@@ -1,25 +1,25 @@
 """Two sequential DLSS passes with independent native sessions and a final blend."""
 import json
-import multiprocessing
-import os
-import time
 
 import numpy as np
 import dlss_engine
 import image_denoise
 import sr_settings
 import task_control
+import dlss_runtime
+import runtime_session
 
 DEFAULTS = {'preset': 1, 'style': 0, 'intensity': 1.0, 'local_tone': 1.0,
             'local_struct': 1.0, 'skin_struct': 1.0, 'use_auto_mask': 1,
             'ui_correction': 0, 'guidance_mode': 0, 'depth_convention': 2,
-            'motion_scale_x': 1.0, 'motion_scale_y': 1.0}
+            'motion_scale_x': 1.0, 'motion_scale_y': 1.0, 'runtime_version': 'auto'}
 
 
 def normalize_settings(settings=None):
     source = settings or {}
     def layer(values):
         result = {key: values.get(key, value) for key, value in DEFAULTS.items()}
+        result['runtime_version'] = dlss_runtime.normalize_version(result['runtime_version'])
         for key, high in [('preset', 3), ('style', 3), ('use_auto_mask', 1),
                           ('ui_correction', 1), ('guidance_mode', 3), ('depth_convention', 2)]:
             value = result[key]
@@ -63,7 +63,8 @@ def guidance_needs(settings):
 
 
 def settings_key(settings):
-    return json.dumps(normalize_settings(settings), sort_keys=True)
+    normalized = normalize_settings(settings)
+    return json.dumps({'settings': normalized, 'runtimes': dlss_runtime.fingerprint(normalized)}, sort_keys=True)
 
 
 def blend_result(original, result, weight):
@@ -78,91 +79,16 @@ def blend_result(original, result, weight):
     return output
 
 
-def _second_worker(connection, width, height, settings, log_path):
-    """The upstream DLL has one global session; isolate the second temporal history."""
-    live = None
-    try:
-        dlss_engine.LOG_PATH = log_path
-        live = dlss_engine.Live(width, height, settings)
-        zeros_flow = np.zeros((height, width, 2), np.float32)
-        zeros_depth = np.zeros((height, width), np.float32)
-        connection.send(('ready', None))
-        while True:
-            command, payload = connection.recv()
-            if command == 'close':
-                break
-            settings, rgba, flow, depth, reset = payload
-            live.update(settings)
-            output = live.process(rgba, zeros_flow if flow is None else flow,
-                                  zeros_depth if depth is None else depth, reset=reset)
-            connection.send(('result', output))
-    except EOFError:
-        pass
-    except Exception as error:
-        try:
-            connection.send(('error', str(error)))
-        except (EOFError, OSError):
-            pass
-    finally:
-        try:
-            if live is not None:
-                live.close()
-        finally:
-            connection.close()
-
-
 class SecondPass:
     def __init__(self, width, height, settings):
-        context = multiprocessing.get_context('spawn')
-        self.connection, child_connection = context.Pipe()
-        log_dir = os.path.dirname(dlss_engine.LOG_PATH)
-        log_path = os.path.join(log_dir, f'dlssnr_layer2_{os.getpid()}.log')
-        self.process_handle = context.Process(target=_second_worker,
-            args=(child_connection, width, height, settings, log_path), daemon=True)
-        try:
-            self.process_handle.start()
-            child_connection.close()
-            self._receive('ready')
-        except BaseException:
-            child_connection.close()
-            self.close(force=True)
-            raise
-
-    def _receive(self, expected):
-        deadline = time.monotonic() + 120
-        while not self.connection.poll(.1):
-            if not self.process_handle.is_alive():
-                raise RuntimeError('第二层 DLSS 进程意外退出，请检查日志或降低处理分辨率')
-            if time.monotonic() > deadline:
-                self.close(force=True)
-                raise RuntimeError('第二层 DLSS 响应超时，请重试或降低处理分辨率')
-        try:
-            status, result = self.connection.recv()
-        except (EOFError, OSError) as error:
-            raise RuntimeError('第二层 DLSS 连接已中断') from error
-        if status != expected:
-            raise RuntimeError('第二层 DLSS：' + str(result))
-        return result
+        self.live = runtime_session.Live(width, height, settings)
 
     def process(self, rgba, flow, depth, reset, settings):
-        mode = settings['guidance_mode']
-        self.connection.send(('process', (settings, rgba, flow if mode in (1, 3) else None,
-                                         depth if mode in (2, 3) else None, reset)))
-        return self._receive('result')
+        self.live.update(settings)
+        return self.live.process(rgba, flow, depth, reset)
 
     def close(self, force=False):
-        process = self.process_handle
-        if process.pid is not None:
-            if process.is_alive() and not force:
-                try:
-                    self.connection.send(('close', None))
-                except (EOFError, OSError):
-                    pass
-                process.join(10)
-            if process.is_alive():
-                process.terminate()
-                process.join(10)
-        self.connection.close()
+        self.live.close(force=force)
 
 
 class LayeredLive:
@@ -199,7 +125,7 @@ class LayeredLive:
             prepared = image_denoise.apply_rgba(rgba, self.settings['input_denoise'])
             task_control.checkpoint()
             if self.first is None:
-                self.first = dlss_engine.Live(self.width, self.height, first_settings)
+                self.first = runtime_session.Live(self.width, self.height, first_settings)
             else:
                 self.first.update(first_settings)
             reset = bool(reset or self._reset)

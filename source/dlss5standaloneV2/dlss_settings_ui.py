@@ -3,11 +3,16 @@ import tkinter as tk
 from tkinter import ttk
 
 import dlss_layers
+import dlss_runtime
+import runtime_session
 
 
 class LayerSettingsMixin:
     def _build_layer_settings(self, parent):
         self._build_parameter_presets(parent)
+        versions = dlss_runtime.load_preferences()
+        gpu = dlss_runtime.gpu_info()
+        self._note(parent, '当前显卡：' + gpu['name'] + '。30 系兼容库为实验版本，请先运行模型自检。')
         self.v_second_enabled = tk.BooleanVar(value=False)
         self.v_overall_weight = tk.DoubleVar(value=100)
         self.v_edit_layer = tk.StringVar(value='第一层 DLSS')
@@ -29,6 +34,7 @@ class LayerSettingsMixin:
         self.layer_container.pack(fill='x')
         for index in range(2):
             variables = {}
+            variables['runtime_version'] = tk.StringVar(value=dlss_runtime.LABELS[versions[index]])
             for name, value in [('preset', 'Preset #1'), ('style', '默认'), ('guidance', '关闭'),
                                 ('depthConv', '强制反转(0远)')]:
                 variables[name] = tk.StringVar(value=value)
@@ -44,6 +50,11 @@ class LayerSettingsMixin:
             self.layer_panels.append(panel)
             self._note(panel, ('第一层：处理输入画面，启用前置降噪时先清理素材。' if index == 0 else
                               '第二层：继续处理第一层的结果。参数始终独立保存，启用第二层后生效。'))
+            grid = self._section(panel, 'DLSS 模型版本')
+            self._choice(grid, '运行库版本（两层可独立选择）', variables['runtime_version'],
+                         list(dlss_runtime.LABELS.values()), self._runtime_changed)
+            self._button(grid, '自检此层模型', lambda i=index: self._test_runtime(i))
+            self._note(panel, '自动：30 系选择 SF-v2，40 系选择原版。版本切换会重建渲染进程；模型预设仍独立控制画面风格。')
             grid = self._section(panel, '模型预设、风格与强度')
             self._choice(grid, '模型预设', variables['preset'], ['Preset #1', 'Preset #2', 'Preset #3'], self.on_settings_change)
             self._choice(grid, '风格', variables['style'], ['默认', '自然', '电影', '风格3'], self.on_settings_change)
@@ -94,7 +105,9 @@ class LayerSettingsMixin:
 
     @staticmethod
     def _read_single_layer(variables):
-        return {'preset': int(variables['preset'].get().split('#')[-1]),
+        return {'runtime_version': next(key for key, label in dlss_runtime.LABELS.items()
+                                        if label == variables['runtime_version'].get()),
+                'preset': int(variables['preset'].get().split('#')[-1]),
                 'style': {'默认': 0, '自然': 1, '电影': 2, '风格3': 3}[variables['style'].get()],
                 'intensity': float(variables['intensity'].get()),
                 'local_tone': float(variables['localTone'].get()),
@@ -109,7 +122,8 @@ class LayerSettingsMixin:
 
     @staticmethod
     def _write_single_layer(variables, settings):
-        values = {'preset': 'Preset #' + str(settings['preset']),
+        values = {'runtime_version': dlss_runtime.LABELS[settings.get('runtime_version', 'auto')],
+                  'preset': 'Preset #' + str(settings['preset']),
                   'style': ['默认', '自然', '电影', '风格3'][settings['style']],
                   'guidance': ['关闭', '仅光流', '仅深度', '深度+光流'][settings['guidance_mode']],
                   'depthConv': ['使用输入标志', '强制正常(0近)', '强制反转(0远)'][settings['depth_convention']]}
@@ -131,3 +145,33 @@ class LayerSettingsMixin:
                            'chroma': float(variables['chroma'].get()),
                            'weight': float(variables['weight'].get()) / 100}
         return dlss_layers.normalize_settings(result)
+
+    def _runtime_changed(self, event=None):
+        if self._busy:
+            return
+        self.pause()
+        self._close_live()
+        try:
+            versions = [self._read_single_layer(group)['runtime_version'] for group in self.layer_vars]
+            dlss_runtime.save_preferences(*versions)
+            info = dlss_runtime.resolve(versions[int(self.v_edit_layer.get() == '第二层 DLSS')])
+            self.set_status('已选择模型：' + info['id'] + '；可运行自检或生成')
+        except (OSError, ValueError) as error:
+            self.set_status(str(error))
+            self.logln(str(error))
+        self.image_dlss = None
+        self._split_frame = -1
+        self.on_settings_change()
+
+    def _test_runtime(self, index):
+        if self._busy:
+            return
+        version = self._read_single_layer(self.layer_vars[index])['runtime_version']
+        self.pause()
+        self._close_live()
+        def work():
+            import json
+            result = runtime_session.selftest(version)
+            self.logln(json.dumps(result, ensure_ascii=False, indent=2))
+            self.set_status(f'模型自检通过：{result["runtime"]["id"]}，3 帧耗时 {result["seconds"]} 秒（当前显卡）')
+        self._in_thread(work)

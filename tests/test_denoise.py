@@ -69,7 +69,7 @@ class DenoiseTests(unittest.TestCase):
         for second in (None, {}):
             for pre, post in ((False, False), (True, False), (False, True), (True, True)):
                 with self.subTest(second=second, pre=pre, post=post), \
-                     patch.object(layers.dlss_engine, 'Live', side_effect=FakeFirst), \
+                     patch.object(layers.runtime_session, 'Live', side_effect=FakeFirst), \
                      patch.object(layers, 'SecondPass', side_effect=FakeSecond):
                     settings = {'second_layer': second, 'overall_weight': .5,
                                 'input_denoise': {**self.active, 'enabled': pre, 'weight': .5},
@@ -89,7 +89,7 @@ class DenoiseTests(unittest.TestCase):
 
     def test_overall_zero_skips_denoising_and_native_models(self):
         with patch.object(image_denoise, 'apply_rgba') as denoise, \
-             patch.object(layers.dlss_engine, 'Live') as first, patch.object(layers, 'SecondPass') as second:
+             patch.object(layers.runtime_session, 'Live') as first, patch.object(layers, 'SecondPass') as second:
             live = layers.LayeredLive(40, 32, {'overall_weight': 0, 'second_layer': {},
                 'input_denoise': self.active, 'output_denoise': self.active})
             np.testing.assert_array_equal(live.process(self.rgba, None, None), self.rgba)
@@ -99,7 +99,7 @@ class DenoiseTests(unittest.TestCase):
             live.close()
 
     def test_parameter_changes_reset_history_and_failure_releases_sessions(self):
-        with patch.object(layers.dlss_engine, 'Live', side_effect=FakeFirst), \
+        with patch.object(layers.runtime_session, 'Live', side_effect=FakeFirst), \
              patch.object(layers, 'SecondPass', side_effect=FakeSecond):
             live = layers.LayeredLive(40, 32, {'second_layer': {}})
             self.addCleanup(live.close)

@@ -4,16 +4,16 @@
 #ifndef ProjectRoot
   #error ProjectRoot is required
 #endif
-#define AppVersion "0.3.7"
+#define AppVersion "0.4.0"
 
 [Setup]
-AppId={{7BE891EC-ED7C-4745-9DFE-4523CDF01B9E}
-AppName=DLSS5 本地超分工作台
+AppId={{FB3F634C-64AE-4E83-A12F-93008D65CC80}
+AppName=DLSS5 30系离线工作台
 AppVersion={#AppVersion}
 AppPublisher=Evanleyyy
 AppPublisherURL=https://github.com/Evanleyyy/DLSS5_Standalone
 DefaultDirName={code:DefaultLocation}
-DefaultGroupName=DLSS5 本地超分工作台
+DefaultGroupName=DLSS5 30系离线工作台
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
@@ -66,6 +66,7 @@ Name: "models\vosr"; Description: "VOSR 2.0 图片超分"; Types: full
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："
 
 [Files]
+Source: "{#ProjectRoot}\runtime\dlssnr\*"; DestDir: "{app}\runtime\dlssnr"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: app
 #ifdef UpdateOnly
 Source: "{#AppSource}\DLSS5_App.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: app
 #else
@@ -88,14 +89,14 @@ Source: "{#ProjectRoot}\THIRD_PARTY_NOTICES.md"; DestDir: "{app}\说明"; Flags:
 Source: "{#ProjectRoot}\packaging\sr-assets-manifest.json"; DestDir: "{app}\说明"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\DLSS5 本地超分工作台"; Filename: "{app}\DLSS5_App.exe"; WorkingDir: "{app}"
-Name: "{autodesktop}\DLSS5 本地超分工作台"; Filename: "{app}\DLSS5_App.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\DLSS5 30系离线工作台"; Filename: "{app}\DLSS5_App.exe"; WorkingDir: "{app}"
+Name: "{autodesktop}\DLSS5 30系离线工作台"; Filename: "{app}\DLSS5_App.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
 #ifndef UpdateOnly
 Filename: "{app}\DLSS5_App.exe"; Parameters: "--prepare-models={code:SelectedModels}"; StatusMsg: "检查并准备本地模型"; Flags: waituntilterminated skipifsilent; Check: HasSelectedModels
 #endif
-Filename: "{app}\DLSS5_App.exe"; Description: "启动 DLSS5 本地超分工作台"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\DLSS5_App.exe"; Description: "启动 DLSS5 30系离线工作台"; Flags: nowait postinstall skipifsilent
 
 [Code]
 #ifndef UpdateOnly
@@ -130,5 +131,5 @@ end;
 
 function DefaultLocation(Param: String): String;
 begin
-  Result := ExtractFileDrive(ExpandConstant('{src}')) + '\DLSS5Standalone';
+  Result := ExtractFileDrive(ExpandConstant('{src}')) + '\DLSS5OfflineRTX30';
 end;

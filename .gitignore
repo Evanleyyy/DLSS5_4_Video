@@ -38,3 +38,5 @@ Thumbs.db
 source/dlss5standaloneV2/DLSS5Tool_standalone.spec
 source/dlss5standaloneV2/README.txt
 source/dlss5standaloneV2/requirements.txt
+
+_selftest.txt

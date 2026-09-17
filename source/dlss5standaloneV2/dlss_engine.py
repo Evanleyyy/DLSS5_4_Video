@@ -110,6 +110,10 @@ class Live:
             raise ValueError("DLSS 图像尺寸必须是正整数")
         self._w, self._h = w, h
         self.settings = dict(settings or {})
+        self.runtime_path = DLSSNR_DLL
+        if 'runtime_version' in self.settings:
+            import dlss_runtime
+            self.runtime_path = dlss_runtime.resolve(self.settings['runtime_version'])['path']
         self._lib = _load()
         self._initialized = False
         self._open()
@@ -137,7 +141,7 @@ class Live:
             s = self.settings
             self._teardown()
             self._apply()
-            if not self._lib.dlssnr_init(self._w, self._h, int(s.get('preset', 1)), DLSSNR_DLL, LOG_PATH):
+            if not self._lib.dlssnr_init(self._w, self._h, int(s.get('preset', 1)), self.runtime_path, LOG_PATH):
                 raise RuntimeError("dlssnr_init failed (D3D12/gate). See dlssnr_run.log")
             self._initialized = True
             _active_session = self
@@ -162,6 +166,8 @@ class Live:
         with _session_lock:
             if not self._initialized:
                 raise RuntimeError("DLSS 会话已关闭")
+            if settings.get('runtime_version', 'auto') != self.settings.get('runtime_version', 'auto'):
+                raise RuntimeError('切换运行库需要新的隔离进程')
             old_preset = self.settings.get('preset')
             self.settings.update(settings)
             if self.settings.get('preset') != old_preset:
