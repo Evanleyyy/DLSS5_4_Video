@@ -1,0 +1,4 @@
+# Keep archived source bytes consistent with their SHA-256 manifest.
+/source-history/** -text whitespace=cr-at-eol
+# A single space represents an empty context line in a unified diff.
+/source-history/**/*.patch whitespace=cr-at-eol,-blank-at-eol

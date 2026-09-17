@@ -1,0 +1,176 @@
+diff --git a/packaging/DLSS5_Installer.iss b/packaging/DLSS5_Installer.iss
+index 30c2709..75d00f5 100644
+--- a/packaging/DLSS5_Installer.iss
++++ b/packaging/DLSS5_Installer.iss
+@@ -11,7 +11,7 @@ AppId={{FB3F634C-64AE-4E83-A12F-93008D65CC80}
+ AppName=DLSS5 30系离线工作台
+ AppVersion={#AppVersion}
+ AppPublisher=Evanleyyy
+-AppPublisherURL=https://github.com/Evanleyyy/DLSS5_Standalone
++AppPublisherURL=https://github.com/Evanleyyy/DLSS5_4_Video
+ DefaultDirName={code:DefaultLocation}
+ DefaultGroupName=DLSS5 30系离线工作台
+ DisableProgramGroupPage=yes
+@@ -48,25 +48,32 @@ Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+ Name: "full"; Description: "更新程序（使用已安装的运行库与模型）"
+ Name: "custom"; Description: "更新程序"; Flags: iscustom
+ #else
+-Name: "full"; Description: "完整安装（模型优先复用本地，缺失时从官方源下载）"
++Name: "full"; Description: "标准安装（DLSS 可离线运行，其他模型按需准备）"
++Name: "withmodels"; Description: "安装并准备其他超分和引导模型（可能需要联网）"
+ Name: "custom"; Description: "自定义安装"; Flags: iscustom
+ #endif
+ 
+ [Components]
++#ifdef UpdateOnly
+ Name: "app"; Description: "应用、DLSS 与离线超分运行库"; Types: full custom; Flags: fixed
++#else
++Name: "app"; Description: "应用、DLSS 与离线超分运行库"; Types: full withmodels custom; Flags: fixed
++#endif
+ #ifndef UpdateOnly
+-Name: "models"; Description: "安装后检查并准备模型（可稍后准备，模型不随安装包分发）"; Types: full
+-Name: "models\guidance"; Description: "深度与光流模型"; Types: full
+-Name: "models\pisa"; Description: "PiSA-SR 图片超分"; Types: full
+-Name: "models\seedvr2"; Description: "SeedVR2 3B FP8 图片／视频超分"; Types: full
+-Name: "models\vosr"; Description: "VOSR 2.0 图片超分"; Types: full
++Name: "models"; Description: "安装后检查并准备模型（可稍后准备，模型不随安装包分发）"; Types: withmodels
++Name: "models\guidance"; Description: "深度与光流模型"; Types: withmodels
++Name: "models\pisa"; Description: "PiSA-SR 图片超分"; Types: withmodels
++Name: "models\seedvr2"; Description: "SeedVR2 3B FP8 图片／视频超分"; Types: withmodels
++Name: "models\vosr"; Description: "VOSR 2.0 图片超分"; Types: withmodels
+ #endif
+ 
+ [Tasks]
+ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："
+ 
+ [Files]
+-Source: "{#ProjectRoot}\runtime\dlssnr\*"; DestDir: "{app}\runtime\dlssnr"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: app
++Source: "{#ProjectRoot}\runtime\dlssnr\manifest.json"; DestDir: "{app}\runtime\dlssnr"; Flags: ignoreversion; Components: app
++Source: "{#ProjectRoot}\runtime\dlssnr\310.8.SF-v2\nvngx_dlssnr.dll"; DestDir: "{app}\runtime\dlssnr\310.8.SF-v2"; Flags: ignoreversion; Components: app
++Source: "{#ProjectRoot}\runtime\dlssnr\310.8.SF\nvngx_dlssnr.dll"; DestDir: "{app}\runtime\dlssnr\310.8.SF"; Flags: ignoreversion; Components: app
+ #ifdef UpdateOnly
+ Source: "{#AppSource}\DLSS5_App.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: app
+ #else
+@@ -79,6 +86,8 @@ Source: "{#ProjectRoot}\runtime\sr-engines\*"; DestDir: "{app}\runtime\sr-engine
+ Source: "{#ProjectRoot}\packaging\sr_worker.py"; DestDir: "{app}\runtime\sr-worker"; Flags: ignoreversion; Components: app
+ Source: "{#ProjectRoot}\source\dlss5standaloneV2\image_denoise.py"; DestDir: "{app}\runtime\sr-worker"; Flags: ignoreversion; Components: app
+ Source: "{#ProjectRoot}\source\dlss5standaloneV2\task_control.py"; DestDir: "{app}\runtime\sr-worker"; Flags: ignoreversion; Components: app
++Source: "{#ProjectRoot}\docs\30系安装与使用.md"; DestDir: "{app}\说明"; Flags: ignoreversion
++Source: "{#ProjectRoot}\docs\0.4.0更新说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+ Source: "{#ProjectRoot}\docs\模型按需部署说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+ Source: "{#ProjectRoot}\docs\本地超分操作说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+ Source: "{#ProjectRoot}\docs\暂停生成操作说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+@@ -115,19 +124,26 @@ begin
+   Result := SelectedModels('') <> '';
+ end;
+ #endif
+-#ifdef UpdateOnly
+ function PrepareToInstall(var NeedsRestart: Boolean): String;
+ begin
++  Result := '';
++  if FileExists(ExpandConstant('{app}\DLSS5_App.exe')) and
++     not FileExists(ExpandConstant('{app}\runtime\dlssnr\manifest.json')) then
++  begin
++    Result := '该目录包含原版或其他版本程序。请为 30 系版本选择独立目录，保留原版安装。';
++    Exit;
++  end;
++#ifdef UpdateOnly
+   if not FileExists(ExpandConstant('{app}\DLSS5_App.exe')) or
+      not FileExists(ExpandConstant('{app}\_internal\python312.dll')) or
+      not FileExists(ExpandConstant('{app}\_internal\base_library.zip')) or
+      not FileExists(ExpandConstant('{app}\runtime\python\python.exe')) or
+      not FileExists(ExpandConstant('{app}\runtime\sr-packages\torch\__init__.py')) then
+-    Result := '这是 {#AppVersion} 更新安装包。请先安装 0.3.0 完整版，再选择已有安装目录。'
++    Result := '这是 {#AppVersion} 更新安装包。请先安装 0.4.0 30 系完整安装包，再选择其独立安装目录。'
+   else
+     Result := '';
+-end;
+ #endif
++end;
+ 
+ function DefaultLocation(Param: String): String;
+ begin
+diff --git a/packaging/standalone_entry.py b/packaging/standalone_entry.py
+index 27c34fa..237a2df 100644
+--- a/packaging/standalone_entry.py
++++ b/packaging/standalone_entry.py
+@@ -9,15 +9,16 @@ from datetime import datetime
+ 
+ def main():
+     multiprocessing.freeze_support()
++    runtime_verification = '--verify-runtimes' in sys.argv
+     sr_verification = '--verify-sr' in sys.argv
+     pause_verification = '--verify-pause' in sys.argv
+     playback_verification = '--verify-playback' in sys.argv
+     export_cache_verification = '--verify-export-cache' in sys.argv
+     preset_verification = '--verify-presets' in sys.argv
+     model_verification = '--verify-model-assets' in sys.argv
+-    verification = '--verify-package' in sys.argv or sr_verification or pause_verification or playback_verification or export_cache_verification or preset_verification or model_verification
++    verification = runtime_verification or '--verify-package' in sys.argv or sr_verification or pause_verification or playback_verification or export_cache_verification or preset_verification or model_verification
+     if verification:
+-        position = sys.argv.index('--verify-model-assets' if model_verification else '--verify-presets' if preset_verification else '--verify-export-cache' if export_cache_verification else '--verify-playback' if playback_verification else '--verify-pause' if pause_verification else '--verify-sr' if sr_verification else '--verify-package')
++        position = sys.argv.index('--verify-runtimes' if runtime_verification else '--verify-model-assets' if model_verification else '--verify-presets' if preset_verification else '--verify-export-cache' if export_cache_verification else '--verify-playback' if playback_verification else '--verify-pause' if pause_verification else '--verify-sr' if sr_verification else '--verify-package')
+         log_dir = Path(sys.argv[position + 1]).resolve()
+         os.environ['DLSS5_DATA_ROOT'] = str(log_dir / 'app-data')
+     else:
+@@ -26,7 +27,7 @@ def main():
+             log_dir = Path(os.environ['DLSS5_DATA_ROOT']) / 'logs'
+         else:
+             local_data = os.environ.get('LOCALAPPDATA', str(Path.home()))
+-            log_dir = Path(local_data) / 'DLSS5Standalone' / 'logs'
++            log_dir = Path(local_data) / 'DLSS5OfflineRTX30' / 'logs'
+     log_dir.mkdir(parents=True, exist_ok=True)
+     os.environ['DLSS5_LOG_DIR'] = str(log_dir)
+     bundle = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
+@@ -39,6 +40,9 @@ def main():
+             if preparation:
+                 from model_prepare_ui import run
+                 raise SystemExit(run(preparation.split('=', 1)[1].split(',')))
++            elif runtime_verification:
++                from runtime_verification import verify
++                verify(log_dir)
+             elif model_verification:
+                 from model_assets_verification import verify
+                 verify(log_dir)
+diff --git "a/packaging/\346\211\223\345\214\205\350\257\264\346\230\216.md" "b/packaging/\346\211\223\345\214\205\350\257\264\346\230\216.md"
+index 28b2c95..956b3d5 100644
+--- "a/packaging/\346\211\223\345\214\205\350\257\264\346\230\216.md"
++++ "b/packaging/\346\211\223\345\214\205\350\257\264\346\230\216.md"
+@@ -1,6 +1,6 @@
+ # 0.4.0 30 系开发版构建与验证
+ 
+-本次线上同步仅提供工程源码，尚未生成或发布 0.4.0 安装包。以下命令用于资源齐备后的本地构建；向第三方分发所含运行库前应核对各组件许可。
++本地安装包由下列流程生成，产物保存在 `output`；Git 源码不包含安装文件。向第三方分发所含运行库前应核对各组件许可。
+ 
+ ## 构建环境
+ 
+@@ -26,7 +26,7 @@
+ | `DLSS5_Update_0.4.0.exe` | 仅用于已有 0.4.0 30 系安装目录的同环境更新，不用于升级原版安装目录 |
+ | 对应 `_SHA256.txt` | 校验全部安装文件 |
+ 
+-完整安装可选择准备哪些模型，安装后先复用本地文件，再下载缺失文件；静默安装跳过准备窗口，首次使用时补全。本分支的 AppId、程序名称和默认安装目录独立于原版，避免覆盖原版工程与安装程序。30 系分支内部更新沿用自己的 AppId，保留设置与模型。更新包拒绝安装到缺少基础运行库的目录；依赖发生变化时必须重新构建完整包。
++标准安装默认仅安装程序、依赖和三个 DLSS 运行库，不下载其他模型；可另选“安装并准备其他超分和引导模型”，先复用本地文件，再下载缺失文件。静默安装跳过准备窗口。本分支的 AppId、程序名称和默认安装目录独立于原版，避免覆盖原版工程与安装程序。30 系分支内部更新沿用自己的 AppId，保留设置与模型。更新包拒绝安装到缺少基础运行库的目录；依赖发生变化时必须重新构建完整包。
+ 
+ 模型、缓存、本机设置、构建产物由 `.gitignore` 排除。发布只上传程序及运行库安装包，不上传模型。
+ 
+@@ -48,6 +48,7 @@
+ 
+ | 检查项 | 内容 |
+ |---|---|
++| `runtimes` | 三个 DLSS 运行库、隔离进程、版本切换、双层渲染、界面保存及带音轨导出；不下载模型 |
+ | `model-assets` | 官方小文件下载、完整性校验、离线复用、模型补全按钮及安装准备窗口 |
+ | `presets` | 命名参数预设、重启恢复、处理中禁用与窗口布局 |
+ | `playback` | 空格播放、控件焦点及 Windows 锁定键组合 |
+diff --git "a/\346\211\223\345\214\205\345\256\211\350\243\205\345\214\205.ps1" "b/\346\211\223\345\214\205\345\256\211\350\243\205\345\214\205.ps1"
+index 78891cb..820bc5f 100644
+--- "a/\346\211\223\345\214\205\345\256\211\350\243\205\345\214\205.ps1"
++++ "b/\346\211\223\345\214\205\345\256\211\350\243\205\345\214\205.ps1"
+@@ -11,6 +11,8 @@ $env:TMP = $temporaryRoot
+ $portablePath = Join-Path $projectRoot 'build\installer-app-current'
+ $compiler = Join-Path $projectRoot 'build\inno\ISCC.exe'
+ if (-not (Test-Path -LiteralPath $compiler)) { throw '缺少 Inno Setup 编译器 build/inno/ISCC.exe' }
++& (Join-Path $projectRoot '.venv\Scripts\python.exe') tools\prepare_dlss_runtimes.py --check-only
++if ($LASTEXITCODE -ne 0) { throw 'DLSS 兼容运行库缺失或校验失败' }
+ # Models never enter the installer. Check the build machine without forcing a download.
+ & (Join-Path $projectRoot '.venv\Scripts\python.exe') tools\download_sr_assets.py --check-only
+ if ($LASTEXITCODE -eq 2) { Write-Host '部分本地模型缺失，将由安装后的模型准备程序按需下载。' }

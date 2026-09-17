@@ -1,0 +1,42 @@
+{
+  "base_commit": "c1f1b787a35afa4749d69b49b22b816466fe4ee2",
+  "source_project": "DLSS5_Offline_RTX30",
+  "files": [
+    {
+      "path": "packaging/DLSS5_Installer.iss",
+      "sha256": "7fe416f79091622647c115c90f94c780267d6280ebb33616682a62ddd61e8e11",
+      "bytes": 7816
+    },
+    {
+      "path": "packaging/standalone_entry.py",
+      "sha256": "ecbec72f77416aebe740c84f433dfe099954f4f1b5c04b0e4bf027e328704a2c",
+      "bytes": 4134
+    },
+    {
+      "path": "packaging/打包说明.md",
+      "sha256": "2a01dc1c08a099c39230831f2e230eb672ff351d92e74472ee482262c5b52a80",
+      "bytes": 4582
+    },
+    {
+      "path": "打包安装包.ps1",
+      "sha256": "9bd01fc7b1cff82ac06062fb9e01a967ca2f20daf5c6eaf0af1dacf7c79f5321",
+      "bytes": 2382
+    },
+    {
+      "path": "docs/30系安装与使用.md",
+      "sha256": "325093107c6ae8a6f49f6ec7d3596123c1227f15059ff31b27128de055705e4e",
+      "bytes": 2379
+    },
+    {
+      "path": "packaging/runtime_verification.py",
+      "sha256": "ae7cf90b83b680b4b5566c2f105e9ac92fae092916ec088bef6f867c111106f8",
+      "bytes": 6090
+    },
+    {
+      "path": "tools/history/verify_installer_040.py",
+      "sha256": "0f540047068fe09a9f254a5e7fa4e172a98de9c75c658af223fc9adc0e6e07ab",
+      "bytes": 5681
+    }
+  ],
+  "patch_sha256": "f0b7ce7c03d1df606fe336d3b59bc633e2caebae135c9036d5c691c983040485"
+}
