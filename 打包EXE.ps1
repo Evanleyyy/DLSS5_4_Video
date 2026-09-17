@@ -2,7 +2,8 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
 $env:PYINSTALLER_CONFIG_DIR = Join-Path $projectRoot 'build\pyinstaller-cache'
-$portablePath = Join-Path $projectRoot ('build\portable-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+# Reuse one disposable staging directory instead of keeping a full runtime per build.
+$portablePath = Join-Path $projectRoot 'build\portable-current'
 $compressor = Join-Path $projectRoot 'build\7zip\x64\7za.exe'
 if (-not (Test-Path -LiteralPath $compressor)) {
     throw '请先将官方 7-Zip Extra 解压到 build\7zip，详见 packaging\打包说明.md。'

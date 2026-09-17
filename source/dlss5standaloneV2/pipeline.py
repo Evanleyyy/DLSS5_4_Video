@@ -92,6 +92,10 @@ def imwrite(path, image):
 
 def _cache_record(video, options):
     stat = os.stat(video)
+    options = dict(options)
+    if options.get('kind') == 'dlss':
+        import dlss_runtime
+        options['dlss_runtimes'] = dlss_runtime.fingerprint(options.get('settings', {}))
     return {'source': os.path.abspath(video), 'size': stat.st_size,
             'mtime_ns': stat.st_mtime_ns, 'options': options, 'revision': 2}
 
@@ -215,6 +219,20 @@ def out_dirs(video):
 
 # ----------------------------- depth -----------------------------
 _depth_model = None
+def release_guidance_models():
+    """Depth/flow have already been cached; let the native renderer own VRAM."""
+    global _depth_model, _flow_model
+    if _depth_model is None and _flow_model is None:
+        return
+    _depth_model = _flow_model = None
+    import gc
+    gc.collect()
+    if _torch_available():
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+
 def get_depth_model():
     global _depth_model
     if _depth_model is None:
@@ -534,6 +552,9 @@ def main():
     ap.add_argument("--depth", action="store_true", help="run depth (cached)")
     ap.add_argument("--flow", action="store_true", help="run flow (cached)")
     ap.add_argument("--dlss", action="store_true", help="run streaming DLSS")
+    import dlss_runtime
+    ap.add_argument('--runtime', choices=list(dlss_runtime.LABELS), default='auto', help='选择 DLSS 运行库版本')
+    ap.add_argument('--preset', type=int, choices=[1, 2, 3], default=1, help='选择模型预设')
     ap.add_argument("--guidance", type=int, choices=[0, 1, 2, 3], default=0)
     ap.add_argument("--export", type=str, default=None, choices=["depth", "flow", "dlss"],
                     help="export a preview video")
@@ -557,7 +578,8 @@ def main():
         print(f"[flow] done ({time.time()-t0:.1f}s) -> {out_dirs(args.video)[1]}")
 
     if args.dlss:
-        generate_dlss(args.video, {'guidance_mode': args.guidance}, args.frames)
+        generate_dlss(args.video, {'guidance_mode': args.guidance,
+                                  'runtime_version': args.runtime, 'preset': args.preset}, args.frames)
 
     if args.export:
         p = export_video(args.video, args.export, args.frames, fps)

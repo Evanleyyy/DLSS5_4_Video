@@ -7,9 +7,12 @@ $temporaryRoot = Join-Path $projectRoot 'build\inno-temp'
 New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
 $env:TEMP = $temporaryRoot
 $env:TMP = $temporaryRoot
-$portablePath = Join-Path $projectRoot ('build\installer-app-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+# Reuse one disposable staging directory instead of keeping a full runtime per build.
+$portablePath = Join-Path $projectRoot 'build\installer-app-current'
 $compiler = Join-Path $projectRoot 'build\inno\ISCC.exe'
 if (-not (Test-Path -LiteralPath $compiler)) { throw '缺少 Inno Setup 编译器 build/inno/ISCC.exe' }
+& (Join-Path $projectRoot '.venv\Scripts\python.exe') tools\prepare_dlss_runtimes.py --check-only
+if ($LASTEXITCODE -ne 0) { throw 'DLSS 兼容运行库缺失或校验失败' }
 # Models never enter the installer. Check the build machine without forcing a download.
 & (Join-Path $projectRoot '.venv\Scripts\python.exe') tools\download_sr_assets.py --check-only
 if ($LASTEXITCODE -eq 2) { Write-Host '部分本地模型缺失，将由安装后的模型准备程序按需下载。' }

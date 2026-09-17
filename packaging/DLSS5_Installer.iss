@@ -4,14 +4,14 @@
 #ifndef ProjectRoot
   #error ProjectRoot is required
 #endif
-#define AppVersion "0.3.7"
+#define AppVersion "0.4.1"
 
 [Setup]
 AppId={{7BE891EC-ED7C-4745-9DFE-4523CDF01B9E}
 AppName=DLSS5 本地超分工作台
 AppVersion={#AppVersion}
 AppPublisher=Evanleyyy
-AppPublisherURL=https://github.com/Evanleyyy/DLSS5_Standalone
+AppPublisherURL=https://github.com/Evanleyyy/DLSS5_4_Video
 DefaultDirName={code:DefaultLocation}
 DefaultGroupName=DLSS5 本地超分工作台
 DisableProgramGroupPage=yes
@@ -48,24 +48,32 @@ Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 Name: "full"; Description: "更新程序（使用已安装的运行库与模型）"
 Name: "custom"; Description: "更新程序"; Flags: iscustom
 #else
-Name: "full"; Description: "完整安装（模型优先复用本地，缺失时从官方源下载）"
+Name: "full"; Description: "标准安装（DLSS 可离线运行，其他模型按需准备）"
+Name: "withmodels"; Description: "安装并准备其他超分和引导模型（可能需要联网）"
 Name: "custom"; Description: "自定义安装"; Flags: iscustom
 #endif
 
 [Components]
+#ifdef UpdateOnly
 Name: "app"; Description: "应用、DLSS 与离线超分运行库"; Types: full custom; Flags: fixed
+#else
+Name: "app"; Description: "应用、DLSS 与离线超分运行库"; Types: full withmodels custom; Flags: fixed
+#endif
 #ifndef UpdateOnly
-Name: "models"; Description: "安装后检查并准备模型（可稍后准备，模型不随安装包分发）"; Types: full
-Name: "models\guidance"; Description: "深度与光流模型"; Types: full
-Name: "models\pisa"; Description: "PiSA-SR 图片超分"; Types: full
-Name: "models\seedvr2"; Description: "SeedVR2 3B FP8 图片／视频超分"; Types: full
-Name: "models\vosr"; Description: "VOSR 2.0 图片超分"; Types: full
+Name: "models"; Description: "安装后检查并准备模型（可稍后准备，模型不随安装包分发）"; Types: withmodels
+Name: "models\guidance"; Description: "深度与光流模型"; Types: withmodels
+Name: "models\pisa"; Description: "PiSA-SR 图片超分"; Types: withmodels
+Name: "models\seedvr2"; Description: "SeedVR2 3B FP8 图片／视频超分"; Types: withmodels
+Name: "models\vosr"; Description: "VOSR 2.0 图片超分"; Types: withmodels
 #endif
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："
 
 [Files]
+Source: "{#ProjectRoot}\runtime\dlssnr\manifest.json"; DestDir: "{app}\runtime\dlssnr"; Flags: ignoreversion; Components: app
+Source: "{#ProjectRoot}\runtime\dlssnr\310.8.SF-v2\nvngx_dlssnr.dll"; DestDir: "{app}\runtime\dlssnr\310.8.SF-v2"; Flags: ignoreversion; Components: app
+Source: "{#ProjectRoot}\runtime\dlssnr\310.8.SF\nvngx_dlssnr.dll"; DestDir: "{app}\runtime\dlssnr\310.8.SF"; Flags: ignoreversion; Components: app
 #ifdef UpdateOnly
 Source: "{#AppSource}\DLSS5_App.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: app
 #else
@@ -78,6 +86,8 @@ Source: "{#ProjectRoot}\runtime\sr-engines\*"; DestDir: "{app}\runtime\sr-engine
 Source: "{#ProjectRoot}\packaging\sr_worker.py"; DestDir: "{app}\runtime\sr-worker"; Flags: ignoreversion; Components: app
 Source: "{#ProjectRoot}\source\dlss5standaloneV2\image_denoise.py"; DestDir: "{app}\runtime\sr-worker"; Flags: ignoreversion; Components: app
 Source: "{#ProjectRoot}\source\dlss5standaloneV2\task_control.py"; DestDir: "{app}\runtime\sr-worker"; Flags: ignoreversion; Components: app
+Source: "{#ProjectRoot}\docs\模型版本选择与安装.md"; DestDir: "{app}\说明"; Flags: ignoreversion
+Source: "{#ProjectRoot}\docs\0.4.1更新说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
 Source: "{#ProjectRoot}\docs\模型按需部署说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
 Source: "{#ProjectRoot}\docs\本地超分操作说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
 Source: "{#ProjectRoot}\docs\暂停生成操作说明.md"; DestDir: "{app}\说明"; Flags: ignoreversion
@@ -114,19 +124,32 @@ begin
   Result := SelectedModels('') <> '';
 end;
 #endif
-#ifdef UpdateOnly
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  StandaloneDirectory: String;
 begin
+  Result := '';
+  { Keep the separately registered 0.4.0 experimental installation independent. }
+  if RegQueryStringValue(HKCU64,
+       'Software\Microsoft\Windows\CurrentVersion\Uninstall\{FB3F634C-64AE-4E83-A12F-93008D65CC80}_is1',
+       'InstallLocation', StandaloneDirectory) and
+     (CompareText(RemoveBackslashUnlessRoot(StandaloneDirectory),
+                  RemoveBackslashUnlessRoot(ExpandConstant('{app}'))) = 0) then
+  begin
+    Result := '该目录是 0.4.0 的独立 30 系安装。请改选原项目安装目录或新的空目录，保留独立实验版。';
+    Exit;
+  end;
+#ifdef UpdateOnly
   if not FileExists(ExpandConstant('{app}\DLSS5_App.exe')) or
      not FileExists(ExpandConstant('{app}\_internal\python312.dll')) or
      not FileExists(ExpandConstant('{app}\_internal\base_library.zip')) or
      not FileExists(ExpandConstant('{app}\runtime\python\python.exe')) or
      not FileExists(ExpandConstant('{app}\runtime\sr-packages\torch\__init__.py')) then
-    Result := '这是 {#AppVersion} 更新安装包。请先安装 0.3.0 完整版，再选择已有安装目录。'
+    Result := '这是 {#AppVersion} 更新安装包。请先安装原项目完整安装包，再选择已有的 DLSS5Standalone 安装目录。'
   else
     Result := '';
-end;
 #endif
+end;
 
 function DefaultLocation(Param: String): String;
 begin

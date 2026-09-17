@@ -27,3 +27,13 @@ PyTorch、Torchvision、FFmpeg、7-Zip、NVIDIA 运行库及模型权重分别�
 - 代码提交号、模型文件长度与 SHA-256 列于 `packaging/sr-assets-manifest.json`。安装器由 Inno Setup 构建。
 
 以上模型及其外部资产遵循各自上游许可；本项目许可证不替代这些组件的许可。
+
+
+## 30 系兼容运行库（0.4.0 引入，0.4.1 合并）
+
+- 架构选择和 CUDA fatbin 检查的参考：[DLSS5-Autopilot/core/gpu.py](https://github.com/Kizzuwatnaa/DLSS5-Autopilot/blob/main/core/gpu.py)，MIT。适配模块在本项目独立实现。
+- 独立神经渲染接口参考：[video2dlssnr/src/nr.cpp](https://github.com/DaniilSokolyuk/video2dlssnr/blob/main/src/nr.cpp)，MIT。本版继续使用原项目宿主，没有下载整个仓库或引入其宿主二进制。
+- 所需二进制仅下载 [310.8.SF-v2](https://github.com/RankFTW/rhi-repo/releases/tag/dlssnr-310.8.SF-v2) 与 [310.8.SF](https://github.com/RankFTW/rhi-repo/releases/tag/dlssnr-310.8.SF) 的 `nvngx_dlssnr` 发布附件。
+- 压缩包与 DLL 均通过固定 SHA-256 校验；详细文件记录位于 `runtime/dlssnr/manifest.json`。
+- NVIDIA 神经渲染运行库是专有二进制，社区适配版本没有公开的通用再分发许可。本地保存和测试不代表已经确认其可以随公开发行版再分发。
+- 原 `nvngx_dlssnr.dll` 保留在源码应用目录，SF / SF-v2 位于本项目 `runtime/dlssnr/`，互不覆盖。

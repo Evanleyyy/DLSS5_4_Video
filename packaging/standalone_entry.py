@@ -9,15 +9,16 @@ from datetime import datetime
 
 def main():
     multiprocessing.freeze_support()
+    runtime_verification = '--verify-runtimes' in sys.argv
     sr_verification = '--verify-sr' in sys.argv
     pause_verification = '--verify-pause' in sys.argv
     playback_verification = '--verify-playback' in sys.argv
     export_cache_verification = '--verify-export-cache' in sys.argv
     preset_verification = '--verify-presets' in sys.argv
     model_verification = '--verify-model-assets' in sys.argv
-    verification = '--verify-package' in sys.argv or sr_verification or pause_verification or playback_verification or export_cache_verification or preset_verification or model_verification
+    verification = runtime_verification or '--verify-package' in sys.argv or sr_verification or pause_verification or playback_verification or export_cache_verification or preset_verification or model_verification
     if verification:
-        position = sys.argv.index('--verify-model-assets' if model_verification else '--verify-presets' if preset_verification else '--verify-export-cache' if export_cache_verification else '--verify-playback' if playback_verification else '--verify-pause' if pause_verification else '--verify-sr' if sr_verification else '--verify-package')
+        position = sys.argv.index('--verify-runtimes' if runtime_verification else '--verify-model-assets' if model_verification else '--verify-presets' if preset_verification else '--verify-export-cache' if export_cache_verification else '--verify-playback' if playback_verification else '--verify-pause' if pause_verification else '--verify-sr' if sr_verification else '--verify-package')
         log_dir = Path(sys.argv[position + 1]).resolve()
         os.environ['DLSS5_DATA_ROOT'] = str(log_dir / 'app-data')
     else:
@@ -39,6 +40,9 @@ def main():
             if preparation:
                 from model_prepare_ui import run
                 raise SystemExit(run(preparation.split('=', 1)[1].split(',')))
+            elif runtime_verification:
+                from runtime_verification import verify
+                verify(log_dir)
             elif model_verification:
                 from model_assets_verification import verify
                 verify(log_dir)

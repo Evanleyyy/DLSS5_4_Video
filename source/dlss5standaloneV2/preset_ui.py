@@ -139,6 +139,8 @@ class PresetMixin:
         try:
             self._write_single_layer(self.layer_vars[0], settings)
             self._write_single_layer(self.layer_vars[1], parameters['second_layer_parameters'])
+            import dlss_runtime
+            dlss_runtime.save_preferences(settings['runtime_version'], parameters['second_layer_parameters']['runtime_version'])
             self.v_second_enabled.set(settings['second_layer'] is not None)
             self.v_overall_weight.set(settings['overall_weight'] * 100)
             for key, variables in self.denoise_vars.items():

@@ -97,7 +97,7 @@ class LayoutMixin:
         return label
 
     def _build_layout(self):
-        self.root.title('DLSS5 离线工具 · 图片与视频工作台')
+        self.root.title('DLSS5 本地超分工作台 · 0.4.1')
         self.root.geometry('1240x820')
         self.root.minsize(680, 520)
         self.root.columnconfigure(0, weight=1)
